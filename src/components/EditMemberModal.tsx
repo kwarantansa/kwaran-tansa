@@ -27,13 +27,14 @@ interface EditMemberModalProps {
 }
 
 const TINGKATAN_OPTIONS: Record<GolonganPramuka, TingkatanPramuka[]> = {
-  Siaga: ['Mula', 'Bantu', 'Tata', 'Garuda'],
-  Penggalang: ['Ramu', 'Rakit', 'Terap', 'Garuda'],
-  Penegak: ['Bantara', 'Laksana', 'Garuda'],
-  Pandega: ['Pandega', 'Garuda'],
-  Pembina: ['Mula', 'Bantu', 'Tata', 'Ramu', 'Rakit', 'Terap', 'Bantara', 'Laksana', 'Garuda'],
-  Pelatih: ['Mula', 'Bantu', 'Tata', 'Ramu', 'Rakit', 'Terap', 'Bantara', 'Laksana', 'Garuda'],
-  Mabigus: ['Mula', 'Bantu', 'Tata', 'Ramu', 'Rakit', 'Terap', 'Bantara', 'Laksana', 'Garuda'],
+  Siaga: ['Siaga Mula', 'Siaga Bantu', 'Siaga Tata', 'Siaga Garuda'],
+  Penggalang: ['Penggalang Ramu', 'Penggalang Rakit', 'Penggalang Terap', 'Penggalang Garuda'],
+  Penegak: ['Penegak Bantara', 'Penegak Laksana', 'Penegak Garuda'],
+  Pandega: ['Pandega', 'Pandega Garuda'],
+  Pembina: ['Pembina Satuan', 'Pembina Mahir Dasar (KMD)', 'Pembina Mahir Lanjutan (KML)'],
+  Pelatih: ['Pelatih Dasar (KPD)', 'Pelatih Lanjutan (KPL)'],
+  Andalan: ['Pembina Satuan', 'Pembina Mahir Dasar (KMD)', 'Pembina Mahir Lanjutan (KML)'],
+  Mabigus: ['Ketua Mabigus', 'Pembina Satuan'],
 };
 
 export const EditMemberModal: React.FC<EditMemberModalProps> = ({
@@ -64,7 +65,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       tanggalLahir: '2013-05-12',
       agama: 'Islam',
       golongan: 'Penggalang',
-      tingkatan: 'Ramu',
+      tingkatan: 'Penggalang Ramu',
       jabatan: 'Anggota Regu',
       gudepId: `gudep-${noGudepPa}`,
       namaPangkalan: pangkalanName,
@@ -101,7 +102,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   };
 
   const handleGolonganChange = (gol: GolonganPramuka) => {
-    const availableTingkatan = TINGKATAN_OPTIONS[gol] || ['Ramu'];
+    const availableTingkatan = TINGKATAN_OPTIONS[gol] || ['Penggalang Ramu'];
     setFormData(prev => ({
       ...prev,
       golongan: gol,
@@ -130,7 +131,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
     }
   };
 
-  const availableTingkatans = TINGKATAN_OPTIONS[formData.golongan] || ['Ramu', 'Rakit', 'Terap'];
+  const availableTingkatans = TINGKATAN_OPTIONS[formData.golongan] || ['Penggalang Ramu', 'Penggalang Rakit', 'Penggalang Terap'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-sm overflow-y-auto">
@@ -357,8 +358,9 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                   className="w-full px-3 py-1.5 bg-[#251309] border border-[#432314] rounded-xl text-white focus:outline-none focus:border-amber-500"
                 >
                   <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
-                  <option value="Terbit">Terbit (KTA Digital Aktif)</option>
-                  <option value="Ditolak">Ditolak</option>
+                  <option value="Sudah Terbit">Sudah Terbit (KTA Digital Aktif)</option>
+                  <option value="Proses Cetak">Proses Cetak</option>
+                  <option value="Belum Diajukan">Belum Diajukan</option>
                 </select>
               </div>
             </div>

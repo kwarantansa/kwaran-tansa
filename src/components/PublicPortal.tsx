@@ -28,7 +28,8 @@ import {
   FileSpreadsheet,
   FolderArchive,
   ArrowRight,
-  Filter
+  Filter,
+  Palette
 } from 'lucide-react';
 import { 
   Gudep, 
@@ -192,9 +193,20 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
           <div className="flex items-center justify-between h-16 gap-2">
             {/* Brand */}
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 p-0.5 shadow-md flex items-center justify-center flex-shrink-0 border border-amber-400/40">
-                <div className="w-full h-full rounded-[9px] bg-[#1A0E08] flex items-center justify-center text-amber-400 font-bold text-base sm:text-lg">
-                  ⚜️
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 p-0.5 shadow-md flex items-center justify-center flex-shrink-0 border border-amber-400/40 overflow-hidden">
+                <div className="w-full h-full rounded-[9px] bg-[#1A0E08] flex items-center justify-center text-amber-400 font-bold text-base sm:text-lg overflow-hidden">
+                  {heroBgConfig?.logoUrl ? (
+                    <img
+                      src={heroBgConfig.logoUrl}
+                      alt="Logo Kwarran"
+                      className="w-full h-full object-contain p-0.5"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
+                      }}
+                    />
+                  ) : (
+                    <span>⚜️</span>
+                  )}
                 </div>
               </div>
               <div className="min-w-0 flex-1">
@@ -312,7 +324,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
                   mixBlendMode: heroBgConfig.blendMode
                 }}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.jpg';
+                  (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
                 }}
               />
             </div>
@@ -321,9 +333,21 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#331B10] border border-amber-500/30 text-amber-300 text-xs font-semibold mb-5 shadow-sm">
-              <span className="text-base">⚜️</span>
-              <span>Satu Data Pramuka Terpadu • Kwarran Tanah Sareal Kota Bogor</span>
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#331B10] border border-amber-500/30 text-amber-300 text-xs font-semibold shadow-sm">
+                <span className="text-base">⚜️</span>
+                <span>Satu Data Pramuka Terpadu • Kwarran Tanah Sareal Kota Bogor</span>
+              </div>
+              {onOpenHeroBgSettings && (
+                <button
+                  onClick={onOpenHeroBgSettings}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition-all shadow-sm"
+                  title="Klik untuk mengganti logo Kwarran atau menyesuaikan background hero"
+                >
+                  <Palette className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Ganti Logo / Background</span>
+                </button>
+              )}
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">

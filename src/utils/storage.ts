@@ -565,7 +565,14 @@ export const getStoredHeroBackground = (): HeroBackgroundConfig => {
       localStorage.setItem(STORAGE_KEYS.HERO_BACKGROUND, JSON.stringify(DEFAULT_HERO_BACKGROUND));
       return DEFAULT_HERO_BACKGROUND;
     }
-    return { ...DEFAULT_HERO_BACKGROUND, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    // Automatically upgrade legacy placeholder paths to the official Kwarran 0917-06 logo
+    if (!parsed.logoUrl || parsed.logoUrl === '/logo-kwarran-tanah-sareal.jpg') {
+      parsed.logoUrl = '/logo-kwarran-tanah-sareal.png';
+      parsed.logoTitle = 'Logo Resmi Kwarran 0917-06 Tanah Sareal';
+      localStorage.setItem(STORAGE_KEYS.HERO_BACKGROUND, JSON.stringify({ ...DEFAULT_HERO_BACKGROUND, ...parsed }));
+    }
+    return { ...DEFAULT_HERO_BACKGROUND, ...parsed };
   } catch (err) {
     console.error('Error reading stored Hero Background config:', err);
     return DEFAULT_HERO_BACKGROUND;

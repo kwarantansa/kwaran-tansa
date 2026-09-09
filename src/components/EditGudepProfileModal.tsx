@@ -18,10 +18,13 @@ import {
   MapPin,
   FileText,
   ShieldCheck,
-  Check
+  Check,
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { GudepRegistration, Gudep, KelurahanTanahSareal, JenjangSekolah } from '../types';
 import { KELURAHAN_LIST } from '../data/initialData';
+import { compressImageFile, normalizeImageUrl } from '../utils/imageCompressor';
 
 interface EditGudepProfileModalProps {
   isOpen: boolean;
@@ -70,6 +73,7 @@ export const EditGudepProfileModal: React.FC<EditGudepProfileModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'identitas' | 'pimpinan' | 'anggota' | 'sarana' | 'medsos'>('identitas');
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessingFoto, setIsProcessingFoto] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -919,15 +923,74 @@ export const EditGudepProfileModal: React.FC<EditGudepProfileModalProps> = ({
 
                 <div>
                   <label className="block text-stone-300 font-semibold mb-1">
-                    Tautan URL Foto Papan Nama Gudep
+                    Foto Papan Nama / Logo Gugus Depan
                   </label>
-                  <input
-                    type="text"
-                    value={formData.fotoPapanNamaUrl || ''}
-                    onChange={(e) => setFormData({ ...formData, fotoPapanNamaUrl: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full px-3 py-2 bg-[#251309] border border-[#432314] rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                  />
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={formData.fotoPapanNamaUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, fotoPapanNamaUrl: e.target.value })}
+                        onBlur={() => {
+                          if (formData.fotoPapanNamaUrl) {
+                            const normalized = normalizeImageUrl(formData.fotoPapanNamaUrl);
+                            if (normalized !== formData.fotoPapanNamaUrl) {
+                              setFormData({ ...formData, fotoPapanNamaUrl: normalized });
+                            }
+                          }
+                        }}
+                        placeholder="https://images.unsplash.com/... atau link Google Drive / Upload"
+                        className="flex-1 px-3 py-2 bg-[#251309] border border-[#432314] rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-amber-500 text-xs"
+                      />
+                      <label className={`px-3 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm ${isProcessingFoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                        {isProcessingFoto ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept="image/png, image/jpeg, image/webp"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setIsProcessingFoto(true);
+                              const compressed = await compressImageFile(file, 640, 640, 0.85);
+                              setFormData({ ...formData, fotoPapanNamaUrl: compressed });
+                            } catch (err: any) {
+                              setErrorMsg(err.message || 'Gagal memproses gambar papan nama.');
+                            } finally {
+                              setIsProcessingFoto(false);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                    {formData.fotoPapanNamaUrl && (
+                      <div className="flex items-center gap-2 p-2 bg-[#1F0E06] border border-[#3E1E0F] rounded-lg">
+                        <img 
+                          src={formData.fotoPapanNamaUrl} 
+                          alt="Preview Papan Nama" 
+                          className="w-10 h-10 object-cover rounded-md border border-amber-500/30"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                        <span className="text-[11px] text-emerald-400 font-medium">Gambar berhasil terpasang</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, fotoPapanNamaUrl: '' })}
+                          className="ml-auto text-[11px] text-red-400 hover:underline"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

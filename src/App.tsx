@@ -910,6 +910,7 @@ export default function App() {
             }}
             onOpenHeroBgSettings={() => setIsHeroBgSettingsOpen(true)}
             onOpenGDriveSettings={() => setIsGDriveSelectorOpen(true)}
+            logoUrl={heroBgConfig.logoUrl}
           />
 
           {/* Pengurus Role Ribbon */}
@@ -1120,6 +1121,8 @@ export default function App() {
         heroBgConfig={heroBgConfig}
         onUpdateHeroBgConfig={(bg) => {
           setHeroBgConfig(bg);
+          saveHeroBackgroundConfig(bg);
+          saveHeroBackgroundToCloud(bg);
           showToast('Pengaturan background & logo hero Kwarran berhasil diperbarui.');
         }}
         onUpdateCurrentUser={(updatedUser) => {

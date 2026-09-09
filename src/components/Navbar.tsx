@@ -44,6 +44,7 @@ interface NavbarProps {
   onOpenPengurusSettings?: (section?: 'pengurus' | 'credentials' | 'kontak' | 'background') => void;
   onOpenHeroBgSettings?: () => void;
   onOpenGDriveSettings?: () => void;
+  logoUrl?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -61,7 +62,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLogin,
   onOpenPengurusSettings,
   onOpenHeroBgSettings,
-  onOpenGDriveSettings
+  onOpenGDriveSettings,
+  logoUrl
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -109,9 +111,20 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16 gap-2">
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer min-w-0 flex-1" onClick={() => setActiveTab('dashboard')}>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 p-0.5 shadow-md flex items-center justify-center flex-shrink-0 border border-amber-400/40">
-              <div className="w-full h-full rounded-[9px] bg-[#1A0E08] flex items-center justify-center text-amber-400 font-bold text-base sm:text-lg">
-                ⚜️
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 p-0.5 shadow-md flex items-center justify-center flex-shrink-0 border border-amber-400/40 overflow-hidden">
+              <div className="w-full h-full rounded-[9px] bg-[#1A0E08] flex items-center justify-center text-amber-400 font-bold text-base sm:text-lg overflow-hidden">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Logo Kwarran"
+                    className="w-full h-full object-contain p-0.5"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
+                    }}
+                  />
+                ) : (
+                  <span>⚜️</span>
+                )}
               </div>
             </div>
             <div className="min-w-0 flex-1">

@@ -15,9 +15,12 @@ import {
   Sun,
   Palette,
   Shield,
-  Maximize2
+  Maximize2,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { HeroBackgroundConfig, DEFAULT_HERO_BACKGROUND } from '../types';
+import { compressImageFile, normalizeImageUrl, checkImageUrlCanLoad } from '../utils/imageCompressor';
 
 interface HeroBackgroundSettingsModalProps {
   isOpen: boolean;
@@ -31,9 +34,9 @@ interface HeroBackgroundSettingsModalProps {
 export const PRESET_HERO_LOGOS = [
   {
     id: 'kwarran-ts-official',
-    title: 'Logo Resmi Kwarran Tanah Sareal',
-    subtitle: 'Emblem Kwartir Ranting Tanah Sareal Kota Bogor',
-    url: '/logo-kwarran-tanah-sareal.jpg',
+    title: 'Logo Resmi Kwarran 0917-06 Tanah Sareal',
+    subtitle: 'Emblem Kwartir Ranting 0917-06 Tanah Sareal Kota Bogor',
+    url: '/logo-kwarran-tanah-sareal.png',
     tag: 'Rekomendasi Utama'
   },
   {
@@ -71,12 +74,15 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
   const [currentConfig, setCurrentConfig] = useState<HeroBackgroundConfig>(config);
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [isSavedNotice, setIsSavedNotice] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Synchronize when opened with external config
   React.useEffect(() => {
     setCurrentConfig(config);
     setIsSavedNotice(false);
+    setUploadError(null);
   }, [config, isOpen]);
 
   if (!isOpen) return null;
@@ -89,37 +95,56 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
     }
   };
 
-  // Handle local file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle local file upload with auto-compression
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadError(null);
+
     if (!file.type.startsWith('image/')) {
-      alert('Mohon pilih file gambar (PNG, JPG, WEBP, SVG).');
+      setUploadError('Mohon pilih file gambar yang valid (PNG, JPG, WEBP, atau SVG).');
       return;
     }
 
-    if (file.size > 3 * 1024 * 1024) {
-      alert('Ukuran file maksimal 3 MB untuk performa web optimal.');
-      return;
+    try {
+      setIsProcessingImage(true);
+      // Automatically resize and optimize so it saves cleanly to Cloud Firestore and localStorage
+      const optimizedDataUrl = await compressImageFile(file, 512, 512, 0.88);
+      updateField('logoUrl', optimizedDataUrl);
+      updateField('logoTitle', file.name.replace(/\.[^/.]+$/, ''));
+      setIsSavedNotice(false);
+    } catch (err: any) {
+      console.error('Error optimizing image:', err);
+      setUploadError(err.message || 'Gagal memproses file logo gambar.');
+    } finally {
+      setIsProcessingImage(false);
+      e.target.value = '';
     }
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const result = evt.target?.result as string;
-      if (result) {
-        updateField('logoUrl', result);
-        updateField('logoTitle', file.name.replace(/\.[^/.]+$/, ''));
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleApplyCustomUrl = () => {
-    if (!customUrlInput.trim()) return;
-    updateField('logoUrl', customUrlInput.trim());
-    updateField('logoTitle', 'Logo Kustom URL');
-    setCustomUrlInput('');
+  const handleApplyCustomUrl = async () => {
+    const raw = customUrlInput.trim();
+    if (!raw) return;
+    setUploadError(null);
+    setIsProcessingImage(true);
+
+    try {
+      const normalized = normalizeImageUrl(raw);
+      const testResult = await checkImageUrlCanLoad(normalized);
+      if (!testResult.ok) {
+        setUploadError(testResult.reason || 'Tautan gambar tidak dapat dimuat oleh browser.');
+        return;
+      }
+
+      updateField('logoUrl', normalized);
+      updateField('logoTitle', normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL');
+      setCustomUrlInput('');
+    } catch (err: any) {
+      setUploadError(err.message || 'Gagal memproses URL logo.');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const handleResetToDefault = () => {
@@ -129,8 +154,18 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
     }
   };
 
-  const handleSaveAndClose = () => {
-    onSave(currentConfig);
+  const handleSaveAndClose = async () => {
+    let finalConfig = { ...currentConfig };
+    if (customUrlInput.trim()) {
+      const normalized = normalizeImageUrl(customUrlInput.trim());
+      finalConfig = {
+        ...finalConfig,
+        logoUrl: normalized,
+        logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
+      };
+      setCurrentConfig(finalConfig);
+    }
+    onSave(finalConfig);
     setIsSavedNotice(true);
     setTimeout(() => {
       setIsSavedNotice(false);
@@ -210,7 +245,7 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
                   }}
                   onError={(e) => {
                     // Fallback to default if error
-                    (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.jpg';
+                    (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
                   }}
                 />
               </div>
@@ -391,7 +426,7 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
                         alt={preset.title}
                         className="w-full h-full object-contain"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.jpg';
+                          (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
                         }}
                       />
                     </div>
@@ -417,50 +452,88 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
             </div>
 
             {/* Upload Logo File & Input URL Options */}
-            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* File Upload Button */}
-              <div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/png, image/jpeg, image/webp, image/svg+xml"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full p-3 rounded-xl bg-[#202F2B] hover:bg-[#283C37] border border-[#314842] text-xs font-semibold text-stone-200 flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Upload className="w-4 h-4 text-amber-400" />
-                  <span>Upload Logo dari HP / Komputer</span>
-                </button>
-                <p className="mt-1 text-[10px] text-stone-400 text-center">
-                  Format: PNG Transparan, JPG, SVG (Maks 3MB)
-                </p>
-              </div>
+            <div className="pt-2 space-y-2">
+              {uploadError && (
+                <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
 
-              {/* URL Input */}
-              <div>
-                <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* File Upload Button */}
+                <div>
                   <input
-                    type="url"
-                    placeholder="https://...link-gambar.png"
-                    value={customUrlInput}
-                    onChange={(e) => setCustomUrlInput(e.target.value)}
-                    className="flex-1 bg-[#131D1B] border border-[#2B3E39] rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-amber-400"
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                    className="hidden"
                   />
                   <button
                     type="button"
-                    onClick={handleApplyCustomUrl}
-                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-bold rounded-xl transition-colors"
+                    disabled={isProcessingImage}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full p-3 rounded-xl bg-[#202F2B] hover:bg-[#283C37] border border-[#314842] text-xs font-semibold text-stone-200 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                   >
-                    Pakai
+                    {isProcessingImage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                        <span>Mengompresi & Memproses Logo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 text-amber-400" />
+                        <span>Upload Logo dari HP / Komputer</span>
+                      </>
+                    )}
                   </button>
+                  <p className="mt-1 text-[10px] text-stone-400 text-center">
+                    Format: PNG Transparan, JPG, SVG (Otomatis dikompresi)
+                  </p>
                 </div>
-                <p className="mt-1 text-[10px] text-stone-400 text-center">
-                  Masukkan link gambar dari website lain
-                </p>
+
+                {/* URL Input */}
+                <div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="https://...link-gambar.png atau Google Drive"
+                      value={customUrlInput}
+                      onChange={(e) => setCustomUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCustomUrl();
+                        }
+                      }}
+                      className="flex-1 bg-[#131D1B] border border-[#2B3E39] rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={isProcessingImage}
+                      onClick={handleApplyCustomUrl}
+                      className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {isProcessingImage ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : null}
+                      <span>Terapkan</span>
+                    </button>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-stone-400 flex-wrap gap-1">
+                    <span>Mendukung link Google Drive, Dropbox, atau direct link (.png/.jpg)</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomUrlInput('/logo-kwarran-tanah-sareal.png');
+                      }}
+                      className="text-amber-400 hover:underline font-mono"
+                    >
+                      Pakai link lokal: /logo-kwarran-tanah-sareal.png
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

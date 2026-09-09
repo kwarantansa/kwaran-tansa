@@ -33,10 +33,13 @@ import {
   Check,
   Unlink,
   Link2,
-  Filter
+  Filter,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { AuthUser, UserRole, SecretariatContact, HeroBackgroundConfig, DEFAULT_HERO_BACKGROUND, Member } from '../types';
 import { getCustomPengurusList, saveCustomPengurusList, resetCustomPengurusList, PengurusAccountItem, INITIAL_PRESET_ACCOUNTS } from '../utils/auth';
+import { compressImageFile, normalizeImageUrl, checkImageUrlCanLoad } from '../utils/imageCompressor';
 import { 
   loadSecretariatContact, 
   saveSecretariatContact, 
@@ -116,6 +119,8 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
     initialHeroBgConfig || loadHeroBackgroundConfig()
   );
   const [customBgUrlInput, setCustomBgUrlInput] = useState('');
+  const [isProcessingLogo, setIsProcessingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   // Helper to find linked member
   const getLinkedMember = (item: PengurusAccountItem | null): Member | undefined => {
@@ -479,12 +484,25 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
   // Hero Background Handlers
   const handleSaveBackground = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveHeroBackgroundConfig(bgConfig);
+    let configToSave = { ...bgConfig };
+
+    if (customBgUrlInput.trim()) {
+      const normalized = normalizeImageUrl(customBgUrlInput.trim());
+      configToSave = {
+        ...configToSave,
+        logoUrl: normalized,
+        logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
+      };
+      setBgConfig(configToSave);
+      setCustomBgUrlInput('');
+    }
+
+    saveHeroBackgroundConfig(configToSave);
     if (onUpdateHeroBgConfig) {
-      onUpdateHeroBgConfig(bgConfig);
+      onUpdateHeroBgConfig(configToSave);
     }
     try {
-      await saveHeroBackgroundToCloud(bgConfig);
+      await saveHeroBackgroundToCloud(configToSave);
     } catch (err) {
       console.warn('Hero background cloud save error:', err);
     }
@@ -1482,7 +1500,7 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                       mixBlendMode: bgConfig.blendMode
                     }}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.jpg';
+                      (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
                     }}
                   />
                 </div>
@@ -1654,7 +1672,7 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                           alt={preset.title}
                           className="w-full h-full object-contain"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.jpg';
+                            (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
                           }}
                         />
                       </div>
@@ -1675,78 +1693,147 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
               </div>
 
               {/* Upload Local File & URL Input */}
-              <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                    Upload Logo Sendiri (PNG / JPG)
-                  </label>
-                  <label className="w-full p-2.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-xs font-semibold text-stone-700 flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm">
-                    <Upload className="w-4 h-4 text-amber-600" />
-                    <span>Pilih File Gambar</span>
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/webp, image/svg+xml"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 3 * 1024 * 1024) {
-                            alert('Ukuran file maksimal 3 MB.');
+              <div className="pt-2 space-y-2">
+                {logoUploadError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <span>{logoUploadError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                      Upload Logo Sendiri (PNG / JPG / SVG)
+                    </label>
+                    <label className={`w-full p-2.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-xs font-semibold text-stone-700 flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm ${isProcessingLogo ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isProcessingLogo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                          <span>Mengompresi Logo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 text-amber-600" />
+                          <span>Pilih File Gambar</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setLogoUploadError(null);
+
+                          if (!file.type.startsWith('image/')) {
+                            setLogoUploadError('Mohon pilih file gambar yang valid (PNG, JPG, WEBP, atau SVG).');
                             return;
                           }
-                          const reader = new FileReader();
-                          reader.onload = (evt) => {
-                            const res = evt.target?.result as string;
-                            if (res) {
+
+                          try {
+                            setIsProcessingLogo(true);
+                            const optimizedDataUrl = await compressImageFile(file, 512, 512, 0.88);
+                            setBgConfig({
+                              ...bgConfig,
+                              logoUrl: optimizedDataUrl,
+                              logoTitle: file.name.replace(/\.[^/.]+$/, '')
+                            });
+                          } catch (err: any) {
+                            console.error('Error compressing logo:', err);
+                            setLogoUploadError(err.message || 'Gagal memproses file gambar.');
+                          } finally {
+                            setIsProcessingLogo(false);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                    <p className="mt-1 text-[10px] text-stone-500 text-center">
+                      Format: PNG Transparan, JPG, SVG (Otomatis dioptimalkan)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                      Atau Masukkan Tautan URL Gambar
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="https://...gambar.png atau link Google Drive"
+                        value={customBgUrlInput}
+                        onChange={(e) => setCustomBgUrlInput(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (!customBgUrlInput.trim()) return;
+                            setLogoUploadError(null);
+                            setIsProcessingLogo(true);
+                            try {
+                              const normalized = normalizeImageUrl(customBgUrlInput.trim());
+                              const test = await checkImageUrlCanLoad(normalized);
+                              if (!test.ok) {
+                                setLogoUploadError(test.reason || 'Tautan gambar tidak dapat dimuat oleh browser.');
+                                return;
+                              }
                               setBgConfig({
                                 ...bgConfig,
-                                logoUrl: res,
-                                logoTitle: file.name.replace(/\.[^/.]+$/, '')
+                                logoUrl: normalized,
+                                logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
                               });
+                              setCustomBgUrlInput('');
+                            } finally {
+                              setIsProcessingLogo(false);
                             }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
-                  <p className="mt-1 text-[10px] text-stone-500 text-center">
-                    Maksimal 3 MB (Disarankan PNG transparan)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                    Atau Masukkan Tautan URL Gambar
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      placeholder="https://...gambar.png"
-                      value={customBgUrlInput}
-                      onChange={(e) => setCustomBgUrlInput(e.target.value)}
-                      className="flex-1 bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-amber-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (customBgUrlInput.trim()) {
-                          setBgConfig({
-                            ...bgConfig,
-                            logoUrl: customBgUrlInput.trim(),
-                            logoTitle: 'Logo Kustom URL'
-                          });
-                          setCustomBgUrlInput('');
-                        }
-                      }}
-                      className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs rounded-xl transition-colors shadow-sm"
-                    >
-                      Pakai
-                    </button>
+                          }
+                        }}
+                        className="flex-1 bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        type="button"
+                        disabled={isProcessingLogo}
+                        onClick={async () => {
+                          if (!customBgUrlInput.trim()) return;
+                          setLogoUploadError(null);
+                          setIsProcessingLogo(true);
+                          try {
+                            const normalized = normalizeImageUrl(customBgUrlInput.trim());
+                            const test = await checkImageUrlCanLoad(normalized);
+                            if (!test.ok) {
+                              setLogoUploadError(test.reason || 'Tautan gambar tidak dapat dimuat oleh browser.');
+                              return;
+                            }
+                            setBgConfig({
+                              ...bgConfig,
+                              logoUrl: normalized,
+                              logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
+                            });
+                            setCustomBgUrlInput('');
+                          } finally {
+                            setIsProcessingLogo(false);
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {isProcessingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        <span>Pakai</span>
+                      </button>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-[10px] text-stone-500 flex-wrap gap-1">
+                      <span>Mendukung link Google Drive, Dropbox, atau tautan gambar langsung</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomBgUrlInput('/logo-kwarran-tanah-sareal.png');
+                        }}
+                        className="text-amber-700 hover:underline font-mono font-medium"
+                      >
+                        Pakai link lokal: /logo-kwarran-tanah-sareal.png
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-1 text-[10px] text-stone-500 text-center">
-                    Link gambar direct URL
-                  </p>
                 </div>
               </div>
             </div>

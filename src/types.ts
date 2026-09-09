@@ -454,9 +454,9 @@ export interface HeroBackgroundConfig {
 
 export const DEFAULT_HERO_BACKGROUND: HeroBackgroundConfig = {
   enabled: true,
-  logoUrl: '/logo-kwarran-tanah-sareal.jpg',
-  logoTitle: 'Logo Resmi Kwarran Tanah Sareal',
-  opacity: 0.22,
+  logoUrl: '/logo-kwarran-tanah-sareal.png',
+  logoTitle: 'Logo Resmi Kwarran 0917-06 Tanah Sareal',
+  opacity: 0.25,
   size: 440,
   offsetY: 0,
   rotation: 0,

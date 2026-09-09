@@ -1,0 +1,10 @@
+{
+  "name": "SISKA-SIKAP kwaran Tansa",
+  "description": "Sistem Informasi Pemutakhiran Data Anggota \u0026 Gugus Depan, Layanan Administrasi NUP dan Penerbitan KTA Kolektif Kwarran Tanah Sareal Kota Bogor.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

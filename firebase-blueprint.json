@@ -1,0 +1,176 @@
+{
+  "entities": {
+    "Gudep": {
+      "title": "Gudep",
+      "description": "Data Gugus Depan Pramuka Kwartir Ranting Tanah Sareal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "noGudepPa": { "type": "string", "maxLength": 30 },
+        "noGudepPi": { "type": "string", "maxLength": 30 },
+        "namaPangkalan": { "type": "string", "maxLength": 200 },
+        "jenjang": { "type": "string", "maxLength": 50 },
+        "kelurahan": { "type": "string", "maxLength": 50 },
+        "alamat": { "type": "string", "maxLength": 500 },
+        "kaMabigus": { "type": "string", "maxLength": 150 },
+        "pembinaGudepPa": { "type": "string", "maxLength": 150 },
+        "pembinaGudepPi": { "type": "string", "maxLength": 150 },
+        "kontakHp": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 100 },
+        "akreditasi": { "type": "string", "maxLength": 30 },
+        "tahunBerdiri": { "type": "number" },
+        "jumlahAnggotaMuda": { "type": "number" },
+        "jumlahPembina": { "type": "number" },
+        "statusSync": { "type": "string", "maxLength": 50 },
+        "terakhirDiperbarui": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "namaPangkalan", "kelurahan"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Data Anggota dan Pembina Pramuka",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nta": { "type": "string", "maxLength": 50 },
+        "nik": { "type": "string", "maxLength": 30 },
+        "namaLengkap": { "type": "string", "maxLength": 150 },
+        "jenisKelamin": { "type": "string", "maxLength": 10 },
+        "tempatLahir": { "type": "string", "maxLength": 100 },
+        "tanggalLahir": { "type": "string", "maxLength": 30 },
+        "agama": { "type": "string", "maxLength": 30 },
+        "golongan": { "type": "string", "maxLength": 30 },
+        "tingkatan": { "type": "string", "maxLength": 60 },
+        "gudepId": { "type": "string", "maxLength": 128 },
+        "namaPangkalan": { "type": "string", "maxLength": 200 },
+        "noGudep": { "type": "string", "maxLength": 50 },
+        "kelurahan": { "type": "string", "maxLength": 50 },
+        "alamatRumah": { "type": "string", "maxLength": 500 },
+        "noTelepon": { "type": "string", "maxLength": 30 },
+        "fotoUrl": { "type": "string", "maxLength": 1000 },
+        "statusKta": { "type": "string", "maxLength": 50 },
+        "statusSync": { "type": "string", "maxLength": 50 },
+        "berlakuKtaSampai": { "type": "string", "maxLength": 30 },
+        "tanggalBergabung": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "namaLengkap", "golongan", "gudepId"]
+    },
+    "NupApplication": {
+      "title": "NupApplication",
+      "description": "Pengajuan NUP (Nomor Unik Pendidik Pramuka)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "noPengajuan": { "type": "string", "maxLength": 50 },
+        "namaLengkap": { "type": "string", "maxLength": 150 },
+        "gudepPangkalan": { "type": "string", "maxLength": 200 },
+        "tanggalPengajuan": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "namaLengkap", "gudepPangkalan"]
+    },
+    "CollectiveKtaBatch": {
+      "title": "CollectiveKtaBatch",
+      "description": "Batch Pengajuan KTA Kolektif Gugus Depan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "namaGudep": { "type": "string", "maxLength": 200 },
+        "jumlah": { "type": "number" },
+        "tanggalPengajuan": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "namaGudep"]
+    },
+    "ArchiveDocument": {
+      "title": "ArchiveDocument",
+      "description": "Dokumen Arsip Digital Resmi Kwarran",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nomorDokumen": { "type": "string", "maxLength": 100 },
+        "judul": { "type": "string", "maxLength": 250 },
+        "kategori": { "type": "string", "maxLength": 100 },
+        "tanggalDokumen": { "type": "string", "maxLength": 30 },
+        "tahun": { "type": "number" },
+        "fileType": { "type": "string", "maxLength": 20 },
+        "fileSize": { "type": "string", "maxLength": 30 },
+        "cloudStorageUrl": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "judul", "kategori"]
+    },
+    "SemesterReport": {
+      "title": "SemesterReport",
+      "description": "Laporan Semester Gugus Depan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "gudepId": { "type": "string", "maxLength": 128 },
+        "namaPangkalan": { "type": "string", "maxLength": 200 },
+        "tahunAjaran": { "type": "string", "maxLength": 50 },
+        "semester": { "type": "string", "maxLength": 20 },
+        "tanggalKirim": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "gudepId", "namaPangkalan"]
+    },
+    "PengurusAccount": {
+      "title": "PengurusAccount",
+      "description": "Akun dan Hak Akses Pengurus Kwarran",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nama": { "type": "string", "maxLength": 150 },
+        "jabatan": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "maxLength": 50 },
+        "username": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["id", "nama", "role", "username"]
+    },
+    "SystemSetting": {
+      "title": "SystemSetting",
+      "description": "Pengaturan Sistem dan Konfigurasi Aplikasi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "/gudep_list/{gudepId}": {
+      "schema": "Gudep",
+      "description": "Koleksi data Gugus Depan se-Tanah Sareal"
+    },
+    "/members_list/{memberId}": {
+      "schema": "Member",
+      "description": "Koleksi data anggota dan pembina Pramuka"
+    },
+    "/nup_list/{nupId}": {
+      "schema": "NupApplication",
+      "description": "Koleksi pengajuan NUP"
+    },
+    "/kta_batches/{batchId}": {
+      "schema": "CollectiveKtaBatch",
+      "description": "Koleksi pengajuan KTA kolektif gudep"
+    },
+    "/archives_list/{archiveId}": {
+      "schema": "ArchiveDocument",
+      "description": "Koleksi arsip digital dokumen Kwarran"
+    },
+    "/semester_reports/{reportId}": {
+      "schema": "SemesterReport",
+      "description": "Koleksi laporan semester gudep"
+    },
+    "/pengurus_list/{pengurusId}": {
+      "schema": "PengurusAccount",
+      "description": "Koleksi akun pengurus Kwarran"
+    },
+    "/system_settings/{settingId}": {
+      "schema": "SystemSetting",
+      "description": "Pengaturan umum dan kontak sekretariat"
+    }
+  }
+}

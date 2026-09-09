@@ -21,11 +21,8 @@ import {
   GudepRegistration
 } from '../types';
 import { PengurusAccountItem, INITIAL_PRESET_ACCOUNTS, getCustomPengurusList } from '../utils/auth';
-import { DEFAULT_SECRETARIAT_CONTACT, INITIAL_GUDEP_REGISTRATIONS } from '../utils/storage';
+import { DEFAULT_SECRETARIAT_CONTACT } from '../utils/storage';
 import { 
-  INITIAL_GUDEP_LIST, 
-  INITIAL_MEMBERS, 
-  INITIAL_COLLECTIVE_BATCHES, 
   INITIAL_ARCHIVES, 
   INITIAL_SEMESTER_REPORTS 
 } from '../data/initialData';
@@ -108,49 +105,90 @@ const COLL_SETTINGS = 'system_settings';
 const DOC_SECRETARIAT = 'secretariat_contact';
 const DOC_HERO_BG = 'hero_background';
 
-// Helper to check if a collection is empty, and seed with default data if empty
+// Helper to purge legacy dummy data from Firestore once
+const PURGE_CLOUD_DUMMY_KEY = 'siska_purged_cloud_dummy_v2026_final';
+export async function purgeLegacyDummyDataFromCloud() {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(PURGE_CLOUD_DUMMY_KEY)) return;
+  
+  try {
+    // Purge Gudep
+    const gudepSnap = await getDocs(collection(db, COLL_GUDEP));
+    if (!gudepSnap.empty) {
+      const batch = writeBatch(db);
+      gudepSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    // Purge Members
+    const memSnap = await getDocs(collection(db, COLL_MEMBERS));
+    if (!memSnap.empty) {
+      const batch = writeBatch(db);
+      memSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    // Purge KTA Batches
+    const batchSnap = await getDocs(collection(db, COLL_KTA_BATCHES));
+    if (!batchSnap.empty) {
+      const batch = writeBatch(db);
+      batchSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    // Purge dummy mock registrations
+    const regSnap = await getDocs(collection(db, COLL_REGISTRATIONS));
+    if (!regSnap.empty) {
+      const batch = writeBatch(db);
+      regSnap.forEach((d) => {
+        if (d.id === 'reg-gudep-mtsmanbaul' || d.id === 'reg-gudep-sdnkebonpedes1') {
+          batch.delete(d.ref);
+        }
+      });
+      await batch.commit();
+    }
+    localStorage.setItem(PURGE_CLOUD_DUMMY_KEY, 'true');
+    console.log('Successfully purged legacy mock data from Firestore.');
+  } catch (err) {
+    console.warn('Notice on purging legacy mock data:', err);
+  }
+}
+
+// Function to manually clear all Gudep and Member data from Cloud
+export async function clearAllGudepAndMembersFromCloud() {
+  try {
+    const gudepSnap = await getDocs(collection(db, COLL_GUDEP));
+    if (!gudepSnap.empty) {
+      const batch = writeBatch(db);
+      gudepSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    const memSnap = await getDocs(collection(db, COLL_MEMBERS));
+    if (!memSnap.empty) {
+      const batch = writeBatch(db);
+      memSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    const batchSnap = await getDocs(collection(db, COLL_KTA_BATCHES));
+    if (!batchSnap.empty) {
+      const batch = writeBatch(db);
+      batchSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    console.warn('Error clearing cloud gudep & members:', err);
+  }
+}
+
+// Helper to check if system collections are empty, and seed only administrative archives/reports
 export async function seedInitialDataIfEmpty() {
   try {
-    const regSnap = await getDocs(collection(db, COLL_REGISTRATIONS));
-    if (regSnap.empty) {
-      const batch = writeBatch(db);
-      INITIAL_GUDEP_REGISTRATIONS.forEach((r) => {
-        batch.set(doc(db, COLL_REGISTRATIONS, r.id), r);
-      });
-      await batch.commit();
-    }
-    const gudepSnap = await getDocs(collection(db, COLL_GUDEP));
-    if (gudepSnap.empty) {
-      console.log('Seeding initial Gudep data to Firestore...');
-      const batch = writeBatch(db);
-      INITIAL_GUDEP_LIST.forEach((g) => {
-        batch.set(doc(db, COLL_GUDEP, g.id), g);
-      });
-      await batch.commit();
-    }
+    // Purge any legacy sample gudep/members from Firestore
+    await purgeLegacyDummyDataFromCloud();
 
-    const memberSnap = await getDocs(collection(db, COLL_MEMBERS));
-    if (memberSnap.empty) {
-      console.log('Seeding initial Members data to Firestore...');
-      const batch = writeBatch(db);
-      INITIAL_MEMBERS.forEach((m) => {
-        batch.set(doc(db, COLL_MEMBERS, m.id), m);
-      });
-      await batch.commit();
-    }
-
-    const ktaSnap = await getDocs(collection(db, COLL_KTA_BATCHES));
-    if (ktaSnap.empty) {
-      console.log('Seeding initial KTA batches to Firestore...');
-      const batch = writeBatch(db);
-      INITIAL_COLLECTIVE_BATCHES.forEach((k) => {
-        batch.set(doc(db, COLL_KTA_BATCHES, k.id), k);
-      });
-      await batch.commit();
-    }
+    // Sesuai SOP & Permintaan User:
+    // Gugus Depan dan Anggota TIDAK di-seed otomatis. 
+    // Gudep HANYA masuk melalui registrasi, dan Anggota HANYA dimasukkan oleh akun Gudep yang terverifikasi.
 
     const archSnap = await getDocs(collection(db, COLL_ARCHIVES));
-    if (archSnap.empty) {
+    if (archSnap.empty && INITIAL_ARCHIVES.length > 0) {
       console.log('Seeding initial Archives to Firestore...');
       const batch = writeBatch(db);
       INITIAL_ARCHIVES.forEach((a) => {
@@ -160,7 +198,7 @@ export async function seedInitialDataIfEmpty() {
     }
 
     const reportSnap = await getDocs(collection(db, COLL_SEMESTER_REPORTS));
-    if (reportSnap.empty) {
+    if (reportSnap.empty && INITIAL_SEMESTER_REPORTS.length > 0) {
       console.log('Seeding initial Semester Reports to Firestore...');
       const batch = writeBatch(db);
       INITIAL_SEMESTER_REPORTS.forEach((r) => {
@@ -192,7 +230,7 @@ export async function seedInitialDataIfEmpty() {
 export function subscribeToGudep(callback: (data: Gudep[]) => void) {
   return onSnapshot(collection(db, COLL_GUDEP), (snapshot) => {
     if (snapshot.empty) {
-      callback(INITIAL_GUDEP_LIST);
+      callback([]);
       return;
     }
     const items: Gudep[] = [];
@@ -206,7 +244,7 @@ export function subscribeToGudep(callback: (data: Gudep[]) => void) {
 export function subscribeToMembers(callback: (data: Member[]) => void) {
   return onSnapshot(collection(db, COLL_MEMBERS), (snapshot) => {
     if (snapshot.empty) {
-      callback(INITIAL_MEMBERS);
+      callback([]);
       return;
     }
     const items: Member[] = [];
@@ -220,7 +258,7 @@ export function subscribeToMembers(callback: (data: Member[]) => void) {
 export function subscribeToKtaBatches(callback: (data: CollectiveKtaBatch[]) => void) {
   return onSnapshot(collection(db, COLL_KTA_BATCHES), (snapshot) => {
     if (snapshot.empty) {
-      callback(INITIAL_COLLECTIVE_BATCHES);
+      callback([]);
       return;
     }
     const items: CollectiveKtaBatch[] = [];
@@ -276,7 +314,7 @@ export function subscribeToPengurus(callback: (data: PengurusAccountItem[]) => v
 export function subscribeToGudepRegistrations(callback: (data: GudepRegistration[]) => void) {
   return onSnapshot(collection(db, COLL_REGISTRATIONS), (snapshot) => {
     if (snapshot.empty) {
-      callback(INITIAL_GUDEP_REGISTRATIONS);
+      callback([]);
       return;
     }
     const items: GudepRegistration[] = [];

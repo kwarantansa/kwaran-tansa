@@ -49,150 +49,34 @@ const STORAGE_KEYS = {
   LAST_SYNC: 'siska_last_sync_timestamp',
 };
 
-export const INITIAL_GUDEP_REGISTRATIONS: GudepRegistration[] = [
-  {
-    id: 'reg-gudep-mtsmanbaul',
-    noRegistrasi: 'REG-GD-2026-001',
-    tanggalRegistrasi: new Date().toISOString().slice(0, 10),
-    statusVerifikasi: 'Menunggu Verifikasi',
-    nomorGudep: '04.075 / 04.076',
-    noGudepPa: '04.075',
-    noGudepPi: '04.076',
-    namaPangkalan: "MTs Manba'ul Islam",
-    jenjang: 'SMP/MTs',
-    statusSekolah: 'Swasta',
-    npsn: '20277490',
-    kelurahan: 'Tanah Sareal',
-    alamat: 'Bogor, Jawa Barat',
-    kaMabigus: 'Akhmad Taufik, S.Pd.I.',
-    jabatanKaMabigus: 'Kepala Madrasah / Ketua Mabigus',
-    noHpKaMabigus: '081388992211',
-    namaPembinaPa: 'Akhmad Taufik, S.Pd.I.',
-    ntaPembinaPa: '09.02.04.075.0001',
-    noHpPembinaPa: '081388992211',
-    kursusPembinaPa: 'KMD',
-    jumlahPembinaPa: 2,
-    namaPembinaPi: 'Siti Rohmah, S.Pd.',
-    ntaPembinaPi: '09.02.04.076.0001',
-    noHpPembinaPi: '081299887766',
-    kursusPembinaPi: 'KMD',
-    jumlahPembinaPi: 2,
-    jumlahSiagaPa: 0,
-    jumlahSiagaPi: 0,
-    jumlahPenggalangPa: 64,
-    jumlahPenggalangPi: 58,
-    jumlahPenegakPa: 0,
-    jumlahPenegakPi: 0,
-    jumlahPandegaPa: 0,
-    jumlahPandegaPi: 0,
-    kegiatanGudep: ['Latihan Mingguan', 'Persami', 'LT (Lomba Tingkat)', 'Gladian', 'Bakti Sosial', 'Hiking'],
-    prestasi3Tahun: 'Keaktifan dalam kegiatan kepramukaan tingkat kwartir ranting dan penyelenggaraan kegiatan internal madrasah serta perolehan juara lomba tingkat.',
-    saranaPrasarana: ['Sanggar', 'Papan Nama Gudep', 'Tiang Bendera', 'Tenda', 'Tongkat', 'Semaphore', 'Peralatan PBB', 'Peralatan Tali-temali', 'Laptop'],
-    potensiGudep: ['Kewirausahaan (potensi pengembangan mandiri)', 'Lingkungan', 'Seni', 'Teknologi (pemanfaatan media digital/web madrasah)'],
-    kendalaGudep: ['Sarana (atau sesuaikan kondisi lapangan)'],
-    kebutuhanPembinaan: ['Digitalisasi Gudep (selaras dengan pemanfaatan platform digital madrasah)'],
-    mediaSosial: {
-      instagram: '@mtsmanbaulislam',
-      facebook: 'MTs Manbaul Islam',
-      tiktok: '@pramuka_manbaulislam',
-      website: 'https://mtsmanbaulislam.cyou'
-    },
-    skGudepFileName: 'SK_Kwartir_Ranting_MTs_Manbaul_Islam.pdf',
-    skGudepUrl: 'https://mtsmanbaulislam.cyou/sk-gudep.pdf',
-    fotoPapanNamaUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&auto=format&fit=crop&q=80',
-    fotoKegiatanUrls: [
-      'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=400&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&auto=format&fit=crop&q=80'
-    ],
-    dokumenPendukungUrls: [
-      { name: 'Program_Kerja_Gudep_2026.pdf', url: 'https://mtsmanbaulislam.cyou/proker.pdf' }
-    ],
-    akunGudep: {
-      username: 'pembina.mtsmanbaul',
-      password: 'mtsmanbaul2026',
-      namaPendaftar: 'Akhmad Taufik, S.Pd.I.',
-      noWaPendaftar: '081388992211',
-      emailPendaftar: 'mtsmanbaulislam@gmail.com'
+// Automatic one-time cleanup of stale local mock data for clean registration-only workflow
+const CLEAN_STORAGE_VERSION_KEY = 'siska_clean_db_v2026_empty_v2';
+if (typeof window !== 'undefined') {
+  try {
+    if (!localStorage.getItem(CLEAN_STORAGE_VERSION_KEY)) {
+      localStorage.removeItem(STORAGE_KEYS.GUDEP);
+      localStorage.removeItem(STORAGE_KEYS.MEMBERS);
+      localStorage.removeItem(STORAGE_KEYS.REGISTRATIONS);
+      localStorage.removeItem(STORAGE_KEYS.BATCHES);
+      localStorage.setItem(CLEAN_STORAGE_VERSION_KEY, 'true');
     }
-  },
-  {
-    id: 'reg-gudep-sdnkebonpedes1',
-    noRegistrasi: 'REG-GD-2026-002',
-    tanggalRegistrasi: '2026-08-10',
-    statusVerifikasi: 'Disetujui',
-    tanggalVerifikasi: '2026-08-12',
-    diverifikasiOleh: 'Kak Drs. H. Suryadi, M.Pd. (Ketua Kwarran)',
-    catatanVerifikasi: 'Data pangkalan dan pembina lengkap dan valid. Pendaftaran disetujui resmi oleh Kwartir Ranting Tanah Sareal.',
-    nomorGudep: '04.071 / 04.072',
-    noGudepPa: '04.071',
-    noGudepPi: '04.072',
-    namaPangkalan: 'SDN Kebon Pedes 1',
-    jenjang: 'SD/MI',
-    statusSekolah: 'Negeri',
-    npsn: '20220101',
-    kelurahan: 'Kebon Pedes',
-    alamat: 'Jl. Kebon Pedes No. 45, RT 02 / RW 04, Tanah Sareal, Kota Bogor',
-    kaMabigus: 'Dra. Hj. Nunung Nurjanah, M.Pd.',
-    jabatanKaMabigus: 'Kepala Sekolah / Ketua Mabigus',
-    noHpKaMabigus: '081234567890',
-    namaPembinaPa: 'Kak Budi Santoso, S.Pd.',
-    ntaPembinaPa: '09.02.04.071.0001',
-    noHpPembinaPa: '081311223344',
-    kursusPembinaPa: 'KML',
-    jumlahPembinaPa: 3,
-    namaPembinaPi: 'Kak Siti Nurhaliza, S.Pd.',
-    ntaPembinaPi: '09.02.04.072.0001',
-    noHpPembinaPi: '081399887711',
-    kursusPembinaPi: 'KMD',
-    jumlahPembinaPi: 3,
-    jumlahSiagaPa: 45,
-    jumlahSiagaPi: 42,
-    jumlahPenggalangPa: 38,
-    jumlahPenggalangPi: 35,
-    jumlahPenegakPa: 0,
-    jumlahPenegakPi: 0,
-    jumlahPandegaPa: 0,
-    jumlahPandegaPi: 0,
-    kegiatanGudep: ['Latihan Mingguan', 'Persami', 'Jambore', 'LT (Lomba Tingkat)', 'Bakti Sosial'],
-    prestasi3Tahun: 'Juara 1 Lomba Tingkat (LT) II Kwarran Tanah Sareal tahun 2025, Juara Umum Pesta Siaga Kwarcab Kota Bogor.',
-    saranaPrasarana: ['Sanggar', 'Papan Nama Gudep', 'Tiang Bendera', 'Tenda', 'Tongkat', 'Semaphore', 'Kompas', 'Peralatan PBB', 'Peralatan Tali-temali'],
-    potensiGudep: ['Pramuka Garuda', 'Kepemimpinan Muda', 'Lingkungan Hidup & Adiwiyata'],
-    kendalaGudep: ['Kebutuhan peremajaan tenda regu'],
-    kebutuhanPembinaan: ['Kursus Pembina Mahir Lanjutan (KML)', 'Bimtek Administrasi Gudep Ramah Anak'],
-    mediaSosial: {
-      instagram: '@pramuka_sdnkebonpedes1',
-      facebook: 'SDN Kebon Pedes 1 Bogor',
-      tiktok: '',
-      website: 'https://sdnkebonpedes1.sch.id'
-    },
-    skGudepFileName: 'SK_Gudep_SDN_Kebon_Pedes_1.pdf',
-    skGudepUrl: '',
-    fotoPapanNamaUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&auto=format&fit=crop&q=80',
-    fotoKegiatanUrls: [
-      'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=400&auto=format&fit=crop&q=80'
-    ],
-    dokumenPendukungUrls: [],
-    akunGudep: {
-      username: 'pembina.sdnkebonpedes',
-      password: 'kebonpedes2026',
-      namaPendaftar: 'Kak Budi Santoso, S.Pd.',
-      noWaPendaftar: '081311223344',
-      emailPendaftar: 'sdnkebonpedes1.pramuka@gmail.com'
-    }
+  } catch (e) {
+    // Ignore storage errors in restricted contexts
   }
-];
+}
+
+export const INITIAL_GUDEP_REGISTRATIONS: GudepRegistration[] = [];
 
 export const loadGudepRegistrations = (): GudepRegistration[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(INITIAL_GUDEP_REGISTRATIONS));
-      return INITIAL_GUDEP_REGISTRATIONS;
+      return [];
     }
     return JSON.parse(raw);
   } catch (err) {
     console.error('Error reading stored Gudep registrations:', err);
-    return INITIAL_GUDEP_REGISTRATIONS;
+    return [];
   }
 };
 
@@ -211,13 +95,12 @@ export const getStoredGudep = (): Gudep[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.GUDEP);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.GUDEP, JSON.stringify(INITIAL_GUDEP_LIST));
-      return INITIAL_GUDEP_LIST;
+      return [];
     }
     return JSON.parse(raw);
   } catch (err) {
     console.error('Error reading stored Gudep:', err);
-    return INITIAL_GUDEP_LIST;
+    return [];
   }
 };
 
@@ -234,7 +117,11 @@ export const saveStoredGudep = (data: Gudep[]) => {
  * Menjamin bahwa seluruh Ketua Mabigus dan Pembina Gudep Putra/Putri dari SISKA
  * otomatis terdata di menu Sinkronisasi Anggota.
  */
-export const syncGudepLeadersWithMembers = (gudepList: Gudep[], currentMembers: Member[]): Member[] => {
+export const syncGudepLeadersWithMembers = (_gudepList: Gudep[], currentMembers: Member[]): Member[] => {
+  return currentMembers;
+};
+
+const _unusedOldSync = (_gudepList: Gudep[], currentMembers: Member[]): Member[] => {
   let updated = [...currentMembers];
   let changed = false;
 
@@ -449,16 +336,11 @@ export const syncGudepLeadersWithMembers = (gudepList: Gudep[], currentMembers: 
 export const getStoredMembers = (): Member[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.MEMBERS);
-    const gudepList = getStoredGudep();
-    let baseMembers: Member[] = raw ? JSON.parse(raw) : INITIAL_MEMBERS;
-    
-    // Otomatis sinkronkan pimpinan Gudep (Ka Mabigus dan Pembina) ke database anggota
-    const syncedMembers = syncGudepLeadersWithMembers(gudepList, baseMembers);
-    saveStoredMembers(syncedMembers);
-    return syncedMembers;
+    if (!raw) return [];
+    return JSON.parse(raw);
   } catch (err) {
     console.error('Error reading stored Members:', err);
-    return INITIAL_MEMBERS;
+    return [];
   }
 };
 
@@ -474,13 +356,12 @@ export const getStoredBatches = (): CollectiveKtaBatch[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.BATCHES);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(INITIAL_COLLECTIVE_BATCHES));
-      return INITIAL_COLLECTIVE_BATCHES;
+      return [];
     }
     return JSON.parse(raw);
   } catch (err) {
     console.error('Error reading stored Batches:', err);
-    return INITIAL_COLLECTIVE_BATCHES;
+    return [];
   }
 };
 
@@ -658,12 +539,12 @@ export const saveHeroBackgroundConfig = saveStoredHeroBackground;
 export const loadGDriveSettings = getStoredGDriveSettings;
 export const saveGDriveSettings = saveStoredGDriveSettings;
 
-// Reset to sample data
+// Reset to clean data
 export const resetToDefaultData = () => {
-  localStorage.setItem(STORAGE_KEYS.GUDEP, JSON.stringify(INITIAL_GUDEP_LIST));
-  const syncedMembers = syncGudepLeadersWithMembers(INITIAL_GUDEP_LIST, INITIAL_MEMBERS);
-  localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(syncedMembers));
-  localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(INITIAL_COLLECTIVE_BATCHES));
+  localStorage.setItem(STORAGE_KEYS.GUDEP, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.ARCHIVES, JSON.stringify(INITIAL_ARCHIVES));
   localStorage.setItem(STORAGE_KEYS.SEMESTER_REPORTS, JSON.stringify(INITIAL_SEMESTER_REPORTS));
   localStorage.setItem(STORAGE_KEYS.GDRIVE_SETTINGS, JSON.stringify(DEFAULT_GDRIVE_SETTINGS));

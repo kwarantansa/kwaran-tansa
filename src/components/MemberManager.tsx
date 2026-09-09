@@ -183,6 +183,12 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   };
 
   const handleOpenAddModal = () => {
+    if (gudepList.length === 0) {
+      alert(
+        'Perhatian:\nBelum ada Gugus Depan terdaftar di Kwartir Ranting Tanah Sareal.\n\nSesuai regulasi:\n1. Pangkalan wajib mendaftar melalui menu Registrasi Gudep dan disetujui oleh Kwarran.\n2. Setelah disetujui, pembina pangkalan dapat login ke Akun Gudep untuk memasukkan anggotanya secara mandiri.'
+      );
+      return;
+    }
     setEditingMember(null);
     const targetGudep = gudepList[0] || defaultGudep;
     setFormData({
@@ -356,6 +362,21 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
             <Plus className="w-4 h-4 text-stone-950" />
             Tambah Anggota
           </button>
+        </div>
+      </div>
+
+      {/* SOP Information Banner */}
+      <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs flex items-start gap-3 text-amber-900 shadow-2xs">
+        <div className="p-1.5 bg-amber-200/60 rounded-xl text-amber-950 flex-shrink-0 mt-0.5">
+          <ShieldCheck className="w-4 h-4" />
+        </div>
+        <div className="space-y-0.5">
+          <div className="font-bold text-amber-950">
+            Ketentuan Input Data Anggota Terverifikasi:
+          </div>
+          <p className="text-amber-900/90 leading-relaxed text-[11.5px]">
+            Sesuai regulasi Kwarran Tanah Sareal, data Gugus Depan hanya masuk melalui <strong>Registrasi Resmi</strong> yang diverifikasi oleh Pengurus. Penambahan serta pengelolaan anggota pramuka dilakukan secara mandiri oleh masing-masing pangkalan melalui <strong>Akun Gudep yang telah berstatus Disetujui/Terverifikasi</strong>.
+          </p>
         </div>
       </div>
 
@@ -604,12 +625,16 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                         {selectedGolongan === 'Mabigus' ? '👑' : '🔍'}
                       </div>
                       <div className="text-sm font-bold text-stone-900">
-                        {selectedGolongan === 'Mabigus'
+                        {members.length === 0
+                          ? 'Belum Ada Data Anggota Terdaftar'
+                          : selectedGolongan === 'Mabigus'
                           ? 'Data Ka Mabigus Tidak Muncul Dengan Filter Saat Ini'
                           : 'Tidak Ada Data Anggota yang Sesuai'}
                       </div>
                       <p className="text-xs text-stone-500">
-                        {selectedGudep !== 'ALL'
+                        {members.length === 0
+                          ? 'Data anggota akan terhimpun otomatis saat masing-masing Gugus Depan yang telah disetujui menginput anggota melalui Akun Gudep terverifikasi.'
+                          : selectedGudep !== 'ALL'
                           ? `Filter pangkalan "${gudepList.find(g => g.id === selectedGudep)?.namaPangkalan || selectedGudep}" sedang aktif. Klik reset filter untuk menampilkan semua pangkalan.`
                           : searchQuery
                           ? `Kata kunci "${searchQuery}" tidak ditemukan pada kategori ini.`

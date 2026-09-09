@@ -34,7 +34,8 @@ import {
   X,
   Edit3,
   Pencil,
-  FileText
+  FileText,
+  Lock
 } from 'lucide-react';
 import {
   AuthUser,
@@ -143,16 +144,26 @@ export const GudepDashboard: React.FC<GudepDashboardProps> = ({
   const ntaPembinaPi = registration?.ntaPembinaPi || '09.02.04.072.0001';
   const noHpPembinaPi = registration?.noHpPembinaPi || '';
 
+  const verificationStatus: 'Disetujui' | 'Menunggu Verifikasi' | 'Ditolak' = useMemo(() => {
+    if (registration?.statusVerifikasi) return registration.statusVerifikasi;
+    if (gudep) return 'Disetujui';
+    return 'Menunggu Verifikasi';
+  }, [registration, gudep]);
+
+  const isGudepVerified = verificationStatus === 'Disetujui';
+
   const effectiveRegistration: GudepRegistration = useMemo(() => {
     if (registration) return registration;
     return {
       id: gudep?.id || 'gudep-' + (currentUser.gudepId || 'active'),
-      noRegistrasi: 'REG-GD-2026-002',
-      tanggalRegistrasi: '2026-08-01',
-      statusVerifikasi: 'Disetujui',
-      catatanVerifikasi: 'Terdaftar Resmi di Kwartir Ranting Tanah Sareal',
-      diverifikasiOleh: 'Kak Drs. H. Suryadi, M.Pd.',
-      tanggalVerifikasi: '2026-08-12',
+      noRegistrasi: 'REG-GD-' + new Date().getFullYear() + '-001',
+      tanggalRegistrasi: new Date().toISOString().slice(0, 10),
+      statusVerifikasi: verificationStatus,
+      catatanVerifikasi: isGudepVerified 
+        ? 'Terdaftar Resmi di Kwartir Ranting Tanah Sareal' 
+        : 'Menunggu proses verifikasi dan persetujuan Pengurus Kwarran',
+      diverifikasiOleh: isGudepVerified ? 'Kwartir Ranting Tanah Sareal' : undefined,
+      tanggalVerifikasi: isGudepVerified ? new Date().toISOString().slice(0, 10) : undefined,
       nomorGudep: nomorGudep,
       noGudepPa: noGudepPa,
       noGudepPi: noGudepPi,
@@ -884,10 +895,19 @@ export const GudepDashboard: React.FC<GudepDashboardProps> = ({
             {/* Header Controls */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#3B1F13] pb-5">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-amber-400" />
-                  <span>Buku Induk Anggota Gudep ({pangkalanName})</span>
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Users className="w-5 h-5 text-amber-400" />
+                    <span>Buku Induk Anggota Gudep ({pangkalanName})</span>
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                    isGudepVerified
+                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-600/40'
+                      : 'bg-amber-950/60 text-amber-400 border-amber-600/40'
+                  }`}>
+                    {isGudepVerified ? 'Akun Terverifikasi' : 'Menunggu Verifikasi'}
+                  </span>
+                </div>
                 <p className="text-xs text-stone-400 mt-0.5">
                   Daftar seluruh peserta didik dan pembina terdaftar di pangkalan ini dengan NTA resmi.
                 </p>
@@ -903,17 +923,39 @@ export const GudepDashboard: React.FC<GudepDashboardProps> = ({
                 </button>
 
                 <button
+                  disabled={!isGudepVerified}
                   onClick={() => {
+                    if (!isGudepVerified) return;
                     setEditingMember(null);
                     setIsEditMemberModalOpen(true);
                   }}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow transition-all"
+                  className={`px-4 py-2 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow transition-all ${
+                    isGudepVerified
+                      ? 'bg-amber-600 hover:bg-amber-500 text-stone-950 cursor-pointer'
+                      : 'bg-stone-800/80 text-stone-500 border border-stone-700 cursor-not-allowed'
+                  }`}
+                  title={!isGudepVerified ? 'Memerlukan akun Gudep yang terverifikasi resmi oleh Kwarran' : 'Tambah Anggota Baru'}
                 >
-                  <Plus className="w-4 h-4" />
+                  {isGudepVerified ? <Plus className="w-4 h-4 text-stone-950" /> : <Lock className="w-4 h-4 text-stone-500" />}
                   <span>Tambah Anggota Baru</span>
                 </button>
               </div>
             </div>
+
+            {/* Warning Banner if Account is not verified yet */}
+            {!isGudepVerified && (
+              <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-4 text-xs text-amber-200 flex items-start gap-3">
+                <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg flex-shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-amber-300 text-sm">Akun Gudep Menunggu Verifikasi</h4>
+                  <p className="text-stone-300 leading-relaxed">
+                    Pangkalan Anda saat ini berstatus <strong>{verificationStatus}</strong>. Sesuai ketentuan Kwartir Ranting Tanah Sareal, fitur penambahan dan input anggota hanya dapat diakses melalui <strong>Akun Gudep yang telah diverifikasi & disetujui resmi</strong> oleh Kwartir Ranting.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Filter and Search Bar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -954,14 +996,20 @@ export const GudepDashboard: React.FC<GudepDashboardProps> = ({
                   Tambahkan anggota pertama untuk pangkalan {pangkalanName} dengan tombol &quot;Tambah Anggota Baru&quot; di atas.
                 </p>
                 <button
+                  disabled={!isGudepVerified}
                   onClick={() => {
+                    if (!isGudepVerified) return;
                     setEditingMember(null);
                     setIsEditMemberModalOpen(true);
                   }}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold rounded-xl text-xs inline-flex items-center gap-1.5"
+                  className={`px-4 py-2 font-bold rounded-xl text-xs inline-flex items-center gap-1.5 ${
+                    isGudepVerified
+                      ? 'bg-amber-600 hover:bg-amber-500 text-stone-950 cursor-pointer'
+                      : 'bg-stone-800 text-stone-500 border border-stone-700 cursor-not-allowed'
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Input Anggota Pertama</span>
+                  {isGudepVerified ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  <span>{isGudepVerified ? 'Input Anggota Pertama' : 'Menunggu Akun Diverifikasi'}</span>
                 </button>
               </div>
             ) : (

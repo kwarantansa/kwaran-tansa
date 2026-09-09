@@ -872,7 +872,7 @@ export default function App() {
               (currentUser.pangkalanId && r.id === currentUser.pangkalanId) ||
               (currentUser.username && r.akunGudep?.username?.toLowerCase() === currentUser.username.toLowerCase()) ||
               (currentUser.namaPangkalan && r.namaPangkalan?.toLowerCase() === currentUser.namaPangkalan.toLowerCase())
-            ) || registrations.find(r => r.statusVerifikasi === 'Disetujui') || registrations[0]
+            )
           }
           gudep={
             gudepList.find(g => 
@@ -1001,6 +1001,7 @@ export default function App() {
                 onSaveGudep={handleSaveGudep}
                 onDeleteGudep={handleDeleteGudep}
                 onVerifyRegistration={handleVerifyRegistration}
+                onOpenRegistration={() => setIsGudepRegistrationOpen(true)}
                 onNavigateToMembers={(search, gudepId, gol) => {
                   setMemberFilter({ search, gudepId, gol });
                   setActiveTab('members');

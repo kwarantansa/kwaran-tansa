@@ -38,6 +38,7 @@ interface GudepManagerProps {
   onDeleteGudep: (id: string) => void;
   onVerifyRegistration?: (regId: string, status: 'Disetujui' | 'Ditolak', note?: string) => Promise<void>;
   onNavigateToMembers?: (searchQuery?: string, gudepId?: string, golongan?: string) => void;
+  onOpenRegistration?: () => void;
 }
 
 export const GudepManager: React.FC<GudepManagerProps> = ({
@@ -47,7 +48,8 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
   onSaveGudep,
   onDeleteGudep,
   onVerifyRegistration,
-  onNavigateToMembers
+  onNavigateToMembers,
+  onOpenRegistration
 }) => {
   const [activeMainTab, setActiveMainTab] = useState<'buku_induk' | 'verifikasi_registrasi'>('buku_induk');
   const [selectedRegDetail, setSelectedRegDetail] = useState<GudepRegistration | null>(null);
@@ -229,11 +231,18 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
                 Ekspor CSV
               </button>
               <button
-                onClick={handleOpenAddModal}
+                onClick={() => {
+                  if (onOpenRegistration) {
+                    onOpenRegistration();
+                  } else {
+                    handleOpenAddModal();
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-stone-950 bg-amber-600 hover:bg-amber-500 rounded-xl shadow-sm transition-all border border-amber-400"
+                title="Daftarkan pangkalan baru melalui formulir Registrasi Resmi"
               >
                 <Plus className="w-4 h-4 text-stone-950" />
-                Tambah Gudep Baru
+                Registrasi Gudep Baru
               </button>
             </>
           )}
@@ -552,6 +561,38 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
             </div>
           </div>
         ))}
+        {filteredList.length === 0 && (
+          <div className="col-span-full bg-white rounded-2xl border border-dashed border-[#D6CBB8] p-10 text-center space-y-4">
+            <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto border border-amber-200 text-2xl">
+              🏫
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-base font-bold text-stone-900">Belum Ada Data Gugus Depan</h4>
+              <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+                Sesuai regulasi Kwarran Tanah Sareal, Gugus Depan hanya dimasukkan melalui alur <strong>Registrasi Resmi</strong> yang diajukan oleh Pangkalan/Mabigus dan disetujui melalui verifikasi Kwartir Ranting.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  if (onOpenRegistration) onOpenRegistration();
+                  else handleOpenAddModal();
+                }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Registrasi Gugus Depan Baru
+              </button>
+              <button
+                onClick={() => setActiveMainTab('verifikasi_registrasi')}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-xl border border-stone-200 transition-colors flex items-center gap-2"
+              >
+                <Clock className="w-4 h-4 text-amber-700" />
+                Lihat Pengajuan Registrasi ({registrations.filter(r => r.statusVerifikasi === 'Menunggu Verifikasi').length} menunggu)
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )}

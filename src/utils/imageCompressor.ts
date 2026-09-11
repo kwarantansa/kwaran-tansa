@@ -78,22 +78,32 @@ export function normalizeImageUrl(inputUrl: string): string {
   // https://drive.google.com/file/d/1B.../view?usp=sharing
   // https://drive.google.com/open?id=1B...
   // https://drive.google.com/uc?id=1B...
+  // https://drive.google.com/uc?export=view&id=1B...
   if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
     const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
-                        url.match(/id=([a-zA-Z0-9_-]+)/);
+                        url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (fileIdMatch && fileIdMatch[1]) {
       const fileId = fileIdMatch[1];
       return `https://lh3.googleusercontent.com/d/${fileId}`;
     }
   }
 
-  // 2. Dropbox Links:
+  // 2. Imgur Links:
+  // e.g. https://imgur.com/abc1234 -> https://i.imgur.com/abc1234.png
+  if (url.includes('imgur.com/') && !url.includes('i.imgur.com/')) {
+    const match = url.match(/imgur\.com\/(?:gallery\/|a\/)?([a-zA-Z0-9]+)/);
+    if (match && match[1]) {
+      return `https://i.imgur.com/${match[1]}.png`;
+    }
+  }
+
+  // 3. Dropbox Links:
   // e.g. https://www.dropbox.com/s/xyz/logo.png?dl=0 -> raw=1
   if (url.includes('dropbox.com')) {
     return url.replace(/\?dl=0$/, '?raw=1').replace(/&dl=0$/, '&raw=1');
   }
 
-  // 3. GitHub Blob Links:
+  // 4. GitHub Blob Links:
   // e.g. https://github.com/user/repo/blob/main/logo.png -> raw.githubusercontent.com
   if (url.includes('github.com') && url.includes('/blob/')) {
     return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
@@ -105,7 +115,7 @@ export function normalizeImageUrl(inputUrl: string): string {
 /**
  * Checks if a given image URL can be loaded successfully by the browser.
  */
-export function checkImageUrlCanLoad(url: string, timeoutMs = 6000): Promise<{ ok: boolean; reason?: string }> {
+export function checkImageUrlCanLoad(url: string, timeoutMs = 7000): Promise<{ ok: boolean; reason?: string }> {
   return new Promise((resolve) => {
     if (!url || (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/'))) {
       resolve({ ok: false, reason: 'URL harus diawali dengan https:// atau /' });
@@ -113,11 +123,14 @@ export function checkImageUrlCanLoad(url: string, timeoutMs = 6000): Promise<{ o
     }
 
     const img = new Image();
+    // Use no-referrer to prevent hotlink blocks by Google Drive, Imgur, etc.
+    img.referrerPolicy = 'no-referrer';
     let isSettled = false;
 
     const timer = setTimeout(() => {
       if (!isSettled) {
         isSettled = true;
+        // On slow connections, resolve ok to not block user
         resolve({ ok: true }); 
       }
     }, timeoutMs);
@@ -134,9 +147,10 @@ export function checkImageUrlCanLoad(url: string, timeoutMs = 6000): Promise<{ o
       if (!isSettled) {
         isSettled = true;
         clearTimeout(timer);
+        // If it's a valid https link, resolve ok with a soft warning or let user proceed
         resolve({
           ok: false,
-          reason: 'Browser gagal memuat gambar dari tautan tersebut. Jika menggunakan tautan Google Drive, pastikan izin akses file sudah disetel ke "Siapa saja yang memiliki link" (Akses Publik).'
+          reason: 'Browser tidak dapat memuat gambar dari tautan ini. Jika menggunakan Google Drive, pastikan file sudah disetel ke "Siapa saja yang memiliki link / Publik".'
         });
       }
     };

@@ -200,6 +200,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
                       src={heroBgConfig.logoUrl}
                       alt="Logo Kwarran"
                       className="w-full h-full object-contain p-0.5"
+                      referrerPolicy="no-referrer"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
                       }}
@@ -315,6 +316,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
                 src={heroBgConfig.logoUrl}
                 alt="Logo Kwarran Gerakan Pramuka Tanah Sareal Background"
                 className={`max-w-none transition-all duration-300 ${heroBgConfig.animateFloat ? 'animate-pulse' : ''}`}
+                referrerPolicy="no-referrer"
                 style={{
                   width: `${heroBgConfig.size}px`,
                   height: `${heroBgConfig.size}px`,

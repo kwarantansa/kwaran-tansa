@@ -132,14 +132,14 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
     try {
       const normalized = normalizeImageUrl(raw);
       const testResult = await checkImageUrlCanLoad(normalized);
-      if (!testResult.ok) {
-        setUploadError(testResult.reason || 'Tautan gambar tidak dapat dimuat oleh browser.');
-        return;
-      }
-
+      
       updateField('logoUrl', normalized);
       updateField('logoTitle', normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL');
       setCustomUrlInput('');
+      
+      if (!testResult.ok && testResult.reason) {
+        setUploadError(`Catatan: ${testResult.reason}`);
+      }
     } catch (err: any) {
       setUploadError(err.message || 'Gagal memproses URL logo.');
     } finally {
@@ -236,6 +236,7 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
                   src={currentConfig.logoUrl}
                   alt="Watermark Preview"
                   className={`object-contain transition-all duration-200 ${currentConfig.animateFloat ? 'animate-pulse' : ''}`}
+                  referrerPolicy="no-referrer"
                   style={{
                     width: `${Math.min(320, currentConfig.size * 0.55)}px`,
                     height: `${Math.min(320, currentConfig.size * 0.55)}px`,

@@ -21,7 +21,8 @@ import {
   Printer,
   Calendar,
   Lock,
-  MessageSquare
+  MessageSquare,
+  Trash2
 } from 'lucide-react';
 import { GudepRegistration } from '../types';
 
@@ -29,12 +30,14 @@ interface GudepRegistrationDetailModalProps {
   registration: GudepRegistration | null;
   onClose: () => void;
   onVerify: (regId: string, status: 'Disetujui' | 'Ditolak', note?: string) => Promise<void>;
+  onDelete?: (regId: string) => Promise<void> | void;
 }
 
 export const GudepRegistrationDetailModal: React.FC<GudepRegistrationDetailModalProps> = ({
   registration,
   onClose,
-  onVerify
+  onVerify,
+  onDelete
 }) => {
   const [note, setNote] = useState(registration?.catatanVerifikasi || '');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -417,8 +420,27 @@ export const GudepRegistrationDetailModal: React.FC<GudepRegistrationDetailModal
 
         {/* Modal Footer with Verification Buttons */}
         <div className="bg-[#140803] px-6 py-4 border-t border-[#3B1F13] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-stone-400">
-            Pastikan data dan dokumen pangkalan telah divalidasi sesuai Buku Induk Kwarran.
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {onDelete && (
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => {
+                  if (confirm(`Hapus berkas pendaftaran ${registration.noRegistrasi} (${registration.namaPangkalan})?\n\nTindakan ini permanen dan berkas pendaftaran akan dihapus dari sistem.`)) {
+                    onDelete(registration.id);
+                    onClose();
+                  }
+                }}
+                className="px-3.5 py-2 bg-red-950/60 hover:bg-red-900/90 text-red-300 hover:text-red-100 border border-red-800/80 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                title="Hapus berkas pendaftaran ini (duplikat atau batal)"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                <span>Hapus Berkas Pendaftaran</span>
+              </button>
+            )}
+            <div className="text-xs text-stone-400 hidden md:block">
+              Pastikan data dan dokumen pangkalan telah divalidasi sesuai Buku Induk Kwarran.
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">

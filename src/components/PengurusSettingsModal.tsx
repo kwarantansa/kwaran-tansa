@@ -1492,6 +1492,7 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                     src={bgConfig.logoUrl}
                     alt="Logo Watermark Preview"
                     className={`object-contain transition-all duration-200 ${bgConfig.animateFloat ? 'animate-pulse' : ''}`}
+                    referrerPolicy="no-referrer"
                     style={{
                       width: `${Math.min(320, bgConfig.size * 0.55)}px`,
                       height: `${Math.min(320, bgConfig.size * 0.55)}px`,
@@ -1774,16 +1775,15 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                             try {
                               const normalized = normalizeImageUrl(customBgUrlInput.trim());
                               const test = await checkImageUrlCanLoad(normalized);
-                              if (!test.ok) {
-                                setLogoUploadError(test.reason || 'Tautan gambar tidak dapat dimuat oleh browser.');
-                                return;
-                              }
                               setBgConfig({
                                 ...bgConfig,
                                 logoUrl: normalized,
                                 logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
                               });
                               setCustomBgUrlInput('');
+                              if (!test.ok && test.reason) {
+                                setLogoUploadError(`Catatan: ${test.reason}`);
+                              }
                             } finally {
                               setIsProcessingLogo(false);
                             }
@@ -1801,16 +1801,15 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                           try {
                             const normalized = normalizeImageUrl(customBgUrlInput.trim());
                             const test = await checkImageUrlCanLoad(normalized);
-                            if (!test.ok) {
-                              setLogoUploadError(test.reason || 'Tautan gambar tidak dapat dimuat oleh browser.');
-                              return;
-                            }
                             setBgConfig({
                               ...bgConfig,
                               logoUrl: normalized,
                               logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
                             });
                             setCustomBgUrlInput('');
+                            if (!test.ok && test.reason) {
+                              setLogoUploadError(`Catatan: ${test.reason}`);
+                            }
                           } finally {
                             setIsProcessingLogo(false);
                           }

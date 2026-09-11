@@ -64,7 +64,8 @@ import {
   deleteSemesterReportFromCloud,
   saveHeroBackgroundToCloud,
   saveRegistrationToCloud,
-  updateRegistrationStatusInCloud
+  updateRegistrationStatusInCloud,
+  deleteGudepRegistrationFromCloud
 } from './services/realtimeDb';
 import { 
   Gudep, 
@@ -524,6 +525,21 @@ export default function App() {
     } else {
       showToast(`Pendaftaran Gudep ${targetReg.namaPangkalan} ditolak / diberi catatan revisi.`);
     }
+  };
+
+  const handleDeleteRegistration = async (regId: string) => {
+    const target = registrations.find(r => r.id === regId);
+    const updated = registrations.filter(r => r.id !== regId);
+    setRegistrations(updated);
+    saveRegistrations(updated);
+
+    try {
+      await deleteGudepRegistrationFromCloud(regId);
+    } catch (err) {
+      console.warn('Error deleting registration from cloud:', err);
+    }
+
+    showToast(`Berkas pendaftaran ${target?.noRegistrasi || ''} (${target?.namaPangkalan || 'Gudep'}) berhasil dihapus.`);
   };
 
   // Member Handlers
@@ -1001,6 +1017,7 @@ export default function App() {
                 onSaveGudep={handleSaveGudep}
                 onDeleteGudep={handleDeleteGudep}
                 onVerifyRegistration={handleVerifyRegistration}
+                onDeleteRegistration={handleDeleteRegistration}
                 onOpenRegistration={() => setIsGudepRegistrationOpen(true)}
                 onNavigateToMembers={(search, gudepId, gol) => {
                   setMemberFilter({ search, gudepId, gol });

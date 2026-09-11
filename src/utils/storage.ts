@@ -113,12 +113,424 @@ export const saveStoredGudep = (data: Gudep[]) => {
 };
 
 /**
- * Sinkronisasi Ka Mabigus dan Pembina Gudep ke Pusat Data Anggota (Member List).
- * Menjamin bahwa seluruh Ketua Mabigus dan Pembina Gudep Putra/Putri dari SISKA
- * otomatis terdata di menu Sinkronisasi Anggota.
+ * Helper to clean and format nomor gudep digits
  */
-export const syncGudepLeadersWithMembers = (_gudepList: Gudep[], currentMembers: Member[]): Member[] => {
-  return currentMembers;
+function cleanNoGudep(no: string | undefined, defaultNum: string): string {
+  if (!no) return defaultNum;
+  const digits = no.replace(/[^0-9]/g, '');
+  return digits.length >= 3 ? digits.slice(-3) : digits.padStart(3, '0');
+}
+
+/**
+ * Generate synthetic deterministic 16-digit NIK
+ */
+function generateSyntheticNik(name: string, seed: string = '327103'): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash |= 0;
+  }
+  const positive = Math.abs(hash).toString().padStart(10, '0').slice(0, 10);
+  return `${seed.slice(0, 6)}${positive}`;
+}
+
+/**
+ * Normalisasi nama orang untuk pencocokan akurat (menghapus gelar, panggilan, dll).
+ */
+export const normalizePersonName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/^(kak|kakak|bapak|ibu|pak|bu|dr|dra|drs|h\.|hj\.|ir\.|prof\.)\s+/i, '')
+    .replace(/,\s*(s\.pd|m\.pd|s\.kom|s\.e|s\.si|m\.m|m\.si|ph\.d|dr|s\.t|m\.t|s\.ag).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+/**
+ * Normalisasi nama pangkalan (menghapus prefiks gudep/pangkalan/kota bogor/singkatan negeri).
+ */
+export const normalizePangkalanName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/^(gugus\s*depan|gudep|pangkalan)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .replace(/negeri/g, 'n')
+    .replace(/kota\s+bogor/g, '')
+    .trim();
+};
+
+/**
+ * Cek apakah seorang anggota terdaftar pada Gudep yang ada di menu Pendataan Gudep.
+ */
+export const isMemberGudepExisting = (m: Member, gudepList: Gudep[]): boolean => {
+  if (!gudepList || gudepList.length === 0) return true; // Hindari salah hapus jika list gudep belum termuat
+
+  return gudepList.some(g => {
+    // 1. Cocok ID Gudep langsung
+    if (m.gudepId && m.gudepId === g.id) return true;
+
+    // 2. Cocok nama pangkalan
+    if (m.namaPangkalan && g.namaPangkalan) {
+      const p1 = normalizePangkalanName(m.namaPangkalan);
+      const p2 = normalizePangkalanName(g.namaPangkalan);
+      if (p1 === p2) return true;
+      if (p1.length >= 4 && p2.length >= 4 && (p1.includes(p2) || p2.includes(p1))) return true;
+    }
+
+    // 3. Cocok nomor gudep
+    if (m.noGudep) {
+      const cleanM = m.noGudep.replace(/[^0-9]/g, '');
+      const paClean = (g.noGudepPa || '').replace(/[^0-9]/g, '');
+      const piClean = (g.noGudepPi || '').replace(/[^0-9]/g, '');
+      if (paClean && cleanM.includes(paClean)) return true;
+      if (piClean && cleanM.includes(piClean)) return true;
+    }
+
+    return false;
+  });
+};
+
+export interface CleanMembersResult {
+  cleanedMembers: Member[];
+  removedMemberIds: string[];
+  orphanCount: number;
+  duplicateCount: number;
+}
+
+/**
+ * Hapus anggota di buku induk yang tidak ada data gudepnya di menu pendataan gudep,
+ * serta bersihkan data duplikat (misal duplikat nama atau data pemimpin gudep ganda).
+ */
+export const cleanOrphanAndDuplicateMembers = (
+  currentMembers: Member[],
+  gudepList: Gudep[]
+): CleanMembersResult => {
+  if (!gudepList || gudepList.length === 0 || !currentMembers || currentMembers.length === 0) {
+    return {
+      cleanedMembers: currentMembers || [],
+      removedMemberIds: [],
+      orphanCount: 0,
+      duplicateCount: 0
+    };
+  }
+
+  const removedMemberIds: string[] = [];
+  let orphanCount = 0;
+  let duplicateCount = 0;
+
+  // 1. Filter: Hapus anggota yang TIDAK memiliki pangkalan di Pendataan Gudep
+  const withValidGudep: Member[] = [];
+
+  for (const m of currentMembers) {
+    const hasGudep = isMemberGudepExisting(m, gudepList);
+    if (!hasGudep) {
+      removedMemberIds.push(m.id);
+      orphanCount++;
+    } else {
+      // Hubungkan ke gudep resmi di menu Pendataan Gudep
+      const matchedGudep = gudepList.find(g => 
+        g.id === m.gudepId ||
+        (m.namaPangkalan && g.namaPangkalan && (
+          normalizePangkalanName(m.namaPangkalan) === normalizePangkalanName(g.namaPangkalan) ||
+          normalizePangkalanName(m.namaPangkalan).includes(normalizePangkalanName(g.namaPangkalan)) ||
+          normalizePangkalanName(g.namaPangkalan).includes(normalizePangkalanName(m.namaPangkalan))
+        ))
+      );
+
+      if (matchedGudep) {
+        withValidGudep.push({
+          ...m,
+          gudepId: matchedGudep.id,
+          namaPangkalan: matchedGudep.namaPangkalan
+        });
+      } else {
+        withValidGudep.push(m);
+      }
+    }
+  }
+
+  // 2. Filter: Bersihkan data duplikat dalam satu Gudep
+  const cleanedMembers: Member[] = [];
+  const seenMap = new Map<string, Member>();
+
+  for (const m of withValidGudep) {
+    const normName = normalizePersonName(m.namaLengkap);
+    const pangkalanKey = m.gudepId || normalizePangkalanName(m.namaPangkalan);
+    const uniqueKey = `${pangkalanKey}:::${normName}`;
+
+    if (!seenMap.has(uniqueKey)) {
+      seenMap.set(uniqueKey, m);
+    } else {
+      duplicateCount++;
+      const existing = seenMap.get(uniqueKey)!;
+
+      // Jika salah satunya adalah data sintetis ('leader-...') dan satu lagi data riil,
+      // HAPUS yang sintetis dan pertahankan yang asli riil
+      const isMSynthetic = m.id.startsWith('leader-');
+      const isExistingSynthetic = existing.id.startsWith('leader-');
+
+      if (isMSynthetic && !isExistingSynthetic) {
+        removedMemberIds.push(m.id);
+      } else if (!isMSynthetic && isExistingSynthetic) {
+        removedMemberIds.push(existing.id);
+        seenMap.set(uniqueKey, m);
+      } else {
+        // Keduanya riil atau keduanya sintetis: simpan yang datanya paling lengkap (NTA / NIK / Foto)
+        const scoreM = (m.nik && m.nik.length >= 10 ? 3 : 0) + (m.nta && !m.nta.includes('NaN') ? 2 : 0) + (m.fotoUrl ? 1 : 0);
+        const scoreE = (existing.nik && existing.nik.length >= 10 ? 3 : 0) + (existing.nta && !existing.nta.includes('NaN') ? 2 : 0) + (existing.fotoUrl ? 1 : 0);
+
+        if (scoreM > scoreE) {
+          removedMemberIds.push(existing.id);
+          seenMap.set(uniqueKey, m);
+        } else {
+          removedMemberIds.push(m.id);
+        }
+      }
+    }
+  }
+
+  seenMap.forEach(m => cleanedMembers.push(m));
+
+  return {
+    cleanedMembers,
+    removedMemberIds,
+    orphanCount,
+    duplicateCount
+  };
+};
+
+/**
+ * Sinkronisasi Ka Mabigus dan Pembina Gudep ke Pusat Data Anggota (Buku Induk Anggota).
+ * Menjamin bahwa seluruh Ketua Mabigus dan Pembina Gudep Putra/Putri dari Buku Induk Pangkalan / Registrasi
+ * otomatis terdaftar resmi di menu Sinkronisasi Anggota (Buku Induk Anggota) tanpa duplikasi.
+ */
+export const syncGudepLeadersWithMembers = (
+  gudepList: Gudep[], 
+  currentMembers: Member[],
+  registrations?: GudepRegistration[]
+): Member[] => {
+  if (!gudepList || gudepList.length === 0) {
+    return currentMembers;
+  }
+
+  const regs = registrations || loadGudepRegistrations();
+  const result: Member[] = [...currentMembers];
+  let hasChanged = false;
+
+  for (const g of gudepList) {
+    if (!g.namaPangkalan) continue;
+    const normPangkalan = normalizePangkalanName(g.namaPangkalan);
+
+    // Cari pendaftaran terkait jika ada
+    const matchingReg = regs.find(r => 
+      (r.namaPangkalan && normalizePangkalanName(r.namaPangkalan) === normPangkalan) ||
+      (r.noGudepPa && g.noGudepPa && r.noGudepPa === g.noGudepPa)
+    );
+
+    const cleanPa = cleanNoGudep(g.noGudepPa, '071');
+    const cleanPi = cleanNoGudep(g.noGudepPi, '072');
+
+    // 1. Sinkronisasi Ka Mabigus (Kepala Pangkalan / Sekolah)
+    const rawKaMabigus = (g.kaMabigus || matchingReg?.kaMabigus || '').trim();
+    if (rawKaMabigus && rawKaMabigus !== '-' && !rawKaMabigus.toLowerCase().startsWith('belum')) {
+      const normKaMabigus = normalizePersonName(rawKaMabigus);
+
+      const existingMabigusIndex = result.findIndex(m => {
+        const sameGudep = m.gudepId === g.id || (m.namaPangkalan && normalizePangkalanName(m.namaPangkalan) === normPangkalan);
+        if (!sameGudep) return false;
+        return (
+          normalizePersonName(m.namaLengkap) === normKaMabigus ||
+          m.golongan === 'Mabigus' ||
+          m.tingkatan === 'Ketua Mabigus' ||
+          (m.jabatan && m.jabatan.toLowerCase().includes('mabigus'))
+        );
+      });
+
+      if (existingMabigusIndex >= 0) {
+        const existing = result[existingMabigusIndex];
+        // Pastikan relasi gudepId dan nama pangkalan sinkron
+        if (existing.gudepId !== g.id || existing.namaPangkalan !== g.namaPangkalan || existing.namaLengkap !== rawKaMabigus) {
+          result[existingMabigusIndex] = {
+            ...existing,
+            gudepId: g.id,
+            namaPangkalan: g.namaPangkalan,
+            namaLengkap: existing.namaLengkap || rawKaMabigus,
+            noGudep: g.noGudepPa && g.noGudepPi ? `${g.noGudepPa} / ${g.noGudepPi}` : (g.noGudepPa || existing.noGudep),
+            kelurahan: g.kelurahan || existing.kelurahan,
+            golongan: 'Mabigus',
+            tingkatan: 'Ketua Mabigus'
+          };
+          hasChanged = true;
+        }
+      } else {
+        // Buat data anggota baru untuk Ka Mabigus
+        const newMabigus: Member = {
+          id: `leader-${g.id}-mabigus`,
+          nta: `09.02.04.${cleanPa}.0001`,
+          nik: generateSyntheticNik(rawKaMabigus, '327103750101'),
+          namaLengkap: rawKaMabigus,
+          jenisKelamin: 'L',
+          tempatLahir: 'Bogor',
+          tanggalLahir: '1975-05-12',
+          agama: 'Islam',
+          golongan: 'Mabigus',
+          tingkatan: 'Ketua Mabigus',
+          jabatan: matchingReg?.jabatanKaMabigus || 'Ketua Majelis Pembimbing Gugus Depan (Ka Mabigus)',
+          gudepId: g.id,
+          namaPangkalan: g.namaPangkalan,
+          noGudep: g.noGudepPa && g.noGudepPi ? `${g.noGudepPa} / ${g.noGudepPi}` : (g.noGudepPa || '04.071'),
+          kelurahan: g.kelurahan || 'Tanah Sareal',
+          alamatRumah: g.alamat || 'Kecamatan Tanah Sareal, Kota Bogor',
+          noTelepon: matchingReg?.noHpKaMabigus || g.kontakHp || '081287654321',
+          fotoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+          statusKta: 'Sudah Terbit',
+          statusSync: 'Tersinkronisasi',
+          kualifikasiKursus: 'KML',
+          berlakuKtaSampai: '2028-12-31',
+          tanggalBergabung: `${g.tahunBerdiri || 2020}-01-01`,
+          inputSource: 'gudep',
+          inputBy: g.namaPangkalan,
+          inputDate: g.terakhirDiperbarui || new Date().toISOString().slice(0, 10)
+        };
+        result.push(newMabigus);
+        hasChanged = true;
+      }
+    }
+
+    // 2. Sinkronisasi Pembina Gudep Putra
+    const rawPembinaPa = (g.pembinaGudepPa || matchingReg?.namaPembinaPa || '').trim();
+    if (rawPembinaPa && rawPembinaPa !== '-' && !rawPembinaPa.toLowerCase().startsWith('belum')) {
+      const normPembinaPa = normalizePersonName(rawPembinaPa);
+
+      const existingPaIndex = result.findIndex(m => {
+        const sameGudep = m.gudepId === g.id || (m.namaPangkalan && normalizePangkalanName(m.namaPangkalan) === normPangkalan);
+        if (!sameGudep) return false;
+        return (
+          normalizePersonName(m.namaLengkap) === normPembinaPa ||
+          (m.jenisKelamin === 'L' && (m.golongan === 'Pembina' || (m.jabatan && m.jabatan.toLowerCase().includes('pembina pa'))))
+        );
+      });
+
+      if (existingPaIndex >= 0) {
+        const existing = result[existingPaIndex];
+        if (existing.gudepId !== g.id || existing.namaPangkalan !== g.namaPangkalan || existing.namaLengkap !== rawPembinaPa) {
+          result[existingPaIndex] = {
+            ...existing,
+            gudepId: g.id,
+            namaPangkalan: g.namaPangkalan,
+            namaLengkap: existing.namaLengkap || rawPembinaPa,
+            noGudep: g.noGudepPa || existing.noGudep,
+            kelurahan: g.kelurahan || existing.kelurahan
+          };
+          hasChanged = true;
+        }
+      } else {
+        const ntaPa = matchingReg?.ntaPembinaPa?.trim() || `09.02.04.${cleanPa}.0002`;
+        const kursusPa = matchingReg?.kursusPembinaPa || 'KML';
+        const newPa: Member = {
+          id: `leader-${g.id}-pembinapa`,
+          nta: ntaPa,
+          nik: generateSyntheticNik(rawPembinaPa, '327103850315'),
+          namaLengkap: rawPembinaPa,
+          jenisKelamin: 'L',
+          tempatLahir: 'Bogor',
+          tanggalLahir: '1985-03-15',
+          agama: 'Islam',
+          golongan: 'Pembina',
+          tingkatan: kursusPa === 'KML' ? 'Pembina Mahir Lanjutan (KML)' : kursusPa === 'KMD' ? 'Pembina Mahir Dasar (KMD)' : 'Pembina Mahir Lanjutan (KML)',
+          jabatan: 'Pembina Gudep Putra',
+          gudepId: g.id,
+          namaPangkalan: g.namaPangkalan,
+          noGudep: g.noGudepPa || '04.071',
+          kelurahan: g.kelurahan || 'Tanah Sareal',
+          alamatRumah: g.alamat || 'Kecamatan Tanah Sareal, Kota Bogor',
+          noTelepon: matchingReg?.noHpPembinaPa || g.kontakHp || '081287654321',
+          fotoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+          statusKta: 'Sudah Terbit',
+          statusSync: 'Tersinkronisasi',
+          kualifikasiKursus: kursusPa === 'Belum KMD' ? 'Belum' : (kursusPa as any),
+          berlakuKtaSampai: '2028-12-31',
+          tanggalBergabung: `${g.tahunBerdiri || 2020}-01-01`,
+          inputSource: 'gudep',
+          inputBy: g.namaPangkalan,
+          inputDate: g.terakhirDiperbarui || new Date().toISOString().slice(0, 10)
+        };
+        result.push(newPa);
+        hasChanged = true;
+      }
+    }
+
+    // 3. Sinkronisasi Pembina Gudep Putri
+    const rawPembinaPi = (g.pembinaGudepPi || matchingReg?.namaPembinaPi || '').trim();
+    if (rawPembinaPi && rawPembinaPi !== '-' && !rawPembinaPi.toLowerCase().startsWith('belum')) {
+      const normPembinaPi = normalizePersonName(rawPembinaPi);
+
+      const existingPiIndex = result.findIndex(m => {
+        const sameGudep = m.gudepId === g.id || (m.namaPangkalan && normalizePangkalanName(m.namaPangkalan) === normPangkalan);
+        if (!sameGudep) return false;
+        return (
+          normalizePersonName(m.namaLengkap) === normPembinaPi ||
+          (m.jenisKelamin === 'P' && (m.golongan === 'Pembina' || (m.jabatan && m.jabatan.toLowerCase().includes('pembina pi'))))
+        );
+      });
+
+      if (existingPiIndex >= 0) {
+        const existing = result[existingPiIndex];
+        if (existing.gudepId !== g.id || existing.namaPangkalan !== g.namaPangkalan || existing.namaLengkap !== rawPembinaPi) {
+          result[existingPiIndex] = {
+            ...existing,
+            gudepId: g.id,
+            namaPangkalan: g.namaPangkalan,
+            namaLengkap: existing.namaLengkap || rawPembinaPi,
+            noGudep: g.noGudepPi || existing.noGudep,
+            kelurahan: g.kelurahan || existing.kelurahan
+          };
+          hasChanged = true;
+        }
+      } else {
+        const ntaPi = matchingReg?.ntaPembinaPi?.trim() || `09.02.04.${cleanPi}.0003`;
+        const kursusPi = matchingReg?.kursusPembinaPi || 'KMD';
+        const newPi: Member = {
+          id: `leader-${g.id}-pembinapi`,
+          nta: ntaPi,
+          nik: generateSyntheticNik(rawPembinaPi, '327103880820'),
+          namaLengkap: rawPembinaPi,
+          jenisKelamin: 'P',
+          tempatLahir: 'Bogor',
+          tanggalLahir: '1988-08-20',
+          agama: 'Islam',
+          golongan: 'Pembina',
+          tingkatan: kursusPi === 'KML' ? 'Pembina Mahir Lanjutan (KML)' : 'Pembina Mahir Dasar (KMD)',
+          jabatan: 'Pembina Gudep Putri',
+          gudepId: g.id,
+          namaPangkalan: g.namaPangkalan,
+          noGudep: g.noGudepPi || '04.072',
+          kelurahan: g.kelurahan || 'Tanah Sareal',
+          alamatRumah: g.alamat || 'Kecamatan Tanah Sareal, Kota Bogor',
+          noTelepon: matchingReg?.noHpPembinaPi || g.kontakHp || '081287654321',
+          fotoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+          statusKta: 'Sudah Terbit',
+          statusSync: 'Tersinkronisasi',
+          kualifikasiKursus: kursusPi === 'Belum KMD' ? 'Belum' : (kursusPi as any),
+          berlakuKtaSampai: '2028-12-31',
+          tanggalBergabung: `${g.tahunBerdiri || 2020}-01-01`,
+          inputSource: 'gudep',
+          inputBy: g.namaPangkalan,
+          inputDate: g.terakhirDiperbarui || new Date().toISOString().slice(0, 10)
+        };
+        result.push(newPi);
+        hasChanged = true;
+      }
+    }
+  }
+
+  if (hasChanged) {
+    saveStoredMembers(result);
+  }
+
+  return result;
 };
 
 export const getStoredMembers = (): Member[] => {
@@ -421,6 +833,8 @@ export const exportMembersCsv = (members: Member[]) => {
     'Pangkalan',
     'No Gudep',
     'Kelurahan',
+    'Sumber Input',
+    'Keterangan Penginput',
     'No Telepon',
     'Status KTA',
     'Status Sinkronisasi',
@@ -428,22 +842,31 @@ export const exportMembersCsv = (members: Member[]) => {
     'Masa Berlaku KTA'
   ];
 
-  const rows = members.map(m => [
-    `"${m.nta}"`,
-    `"${m.nik}"`,
-    `"${m.namaLengkap.replace(/"/g, '""')}"`,
-    `"${m.jenisKelamin}"`,
-    `"${m.golongan}"`,
-    `"${m.tingkatan}"`,
-    `"${m.namaPangkalan.replace(/"/g, '""')}"`,
-    `"${m.noGudep}"`,
-    `"${m.kelurahan}"`,
-    `"${m.noTelepon}"`,
-    `"${m.statusKta}"`,
-    `"${m.statusSync}"`,
-    `"${m.kualifikasiKursus || '-'}"`,
-    `"${m.berlakuKtaSampai}"`
-  ]);
+  const rows = members.map(m => {
+    const isPengurus = m.inputSource === 'pengurus' || 
+      (m.inputBy && (m.inputBy.toLowerCase().includes('pengurus') || m.inputBy.toLowerCase().includes('kwarran')));
+    const sumberLabel = isPengurus ? 'Diinput Manual Pengurus' : 'Diinput di Gudep (Mandiri)';
+    const penginput = m.inputBy || (isPengurus ? 'Pengurus Kwarran' : m.namaPangkalan);
+
+    return [
+      `"${m.nta}"`,
+      `"${m.nik}"`,
+      `"${m.namaLengkap.replace(/"/g, '""')}"`,
+      `"${m.jenisKelamin}"`,
+      `"${m.golongan}"`,
+      `"${m.tingkatan}"`,
+      `"${m.namaPangkalan.replace(/"/g, '""')}"`,
+      `"${m.noGudep}"`,
+      `"${m.kelurahan}"`,
+      `"${sumberLabel}"`,
+      `"${penginput.replace(/"/g, '""')}"`,
+      `"${m.noTelepon}"`,
+      `"${m.statusKta}"`,
+      `"${m.statusSync}"`,
+      `"${m.kualifikasiKursus || '-'}"`,
+      `"${m.berlakuKtaSampai}"`
+    ];
+  });
 
   const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

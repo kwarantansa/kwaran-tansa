@@ -169,6 +169,8 @@ export interface Gudep {
   terakhirDiperbarui: string;
 }
 
+export type MemberInputSource = 'gudep' | 'pengurus';
+
 export interface Member {
   id: string;
   nta: string; // Nomor Tanda Anggota (e.g. 09.02.04.071.0001)
@@ -194,6 +196,9 @@ export interface Member {
   kualifikasiKursus?: 'Belum' | 'KMD' | 'KML' | 'KPD' | 'KPL';
   berlakuKtaSampai: string;
   tanggalBergabung: string;
+  inputSource?: MemberInputSource; // 'gudep' = Diinput di Gudep masing-masing, 'pengurus' = Diinput manual oleh Pengurus
+  inputBy?: string; // Keterangan instansi/petugas penginput (e.g. "SDN Kebon Pedes 1" atau "Pengurus Kwarran")
+  inputDate?: string; // Tanggal penginputan (YYYY-MM-DD atau ISO string)
 }
 
 export interface CollectiveKtaBatch {
@@ -227,18 +232,81 @@ export interface CensusStatSummary {
   persenSync: number;
 }
 
+export type ArchiveType = 'surat_masuk' | 'surat_keluar' | 'arsip_umum';
+
+export type SifatSurat = 'Biasa' | 'Penting' | 'Segera' | 'Sangat Rahasia';
+export type StatusDisposisi = 'Menunggu Disposisi' | 'Sudah Didisposisikan' | 'Selesai Ditindaklanjuti';
+export type KlasifikasiSuratKeluar = 'A' | 'B' | 'C' | 'D'; // A: Biasa/Edaran/Undangan, B: SK/Instruksi, C: Tugas/Mandat, D: Pengantar/Rekomendasi
+
+export interface SuratMasukDetail {
+  nomorSuratAsal: string;
+  pengirimAsal: string;
+  tanggalSurat: string;
+  tanggalDiterima: string;
+  sifatSurat: SifatSurat;
+  disposisiTujuan?: string;
+  disposisiCatatan?: string;
+  statusDisposisi?: StatusDisposisi;
+}
+
+export interface SuratKeluarDetail {
+  nomorSuratKwarran: string;
+  kodeKlasifikasi: KlasifikasiSuratKeluar;
+  tujuanPenerima: string;
+  perihal: string;
+  tanggalSurat: string;
+  lampiran?: string;
+  penandatanganNama: string;
+  penandatanganJabatan: string;
+  penandatanganNta?: string;
+  tembusan?: string[];
+  templateId?: string;
+  statusDistribusi?: 'Draf' | 'Telah Terbit & Didistribusikan' | 'Arsip Resmi';
+}
+
+export interface SuratKeluarTemplate {
+  id: string;
+  kodeKlasifikasi: KlasifikasiSuratKeluar;
+  namaTemplate: string;
+  deskripsi: string;
+  kategori: string;
+  perihalDefault: string;
+  lampiranDefault: string;
+  tujuanDefault: string;
+  tempatTujuanDefault: string;
+  salamPembukaDefault: string;
+  isiPembukaDefault: string;
+  detailKegiatanDefault?: {
+    hariTanggal?: string;
+    waktu?: string;
+    tempat?: string;
+    acara?: string;
+    pakaian?: string;
+  };
+  isiBadanDefault: string;
+  isiPenutupDefault: string;
+  penandatanganJabatanDefault: string;
+  penandatanganNamaDefault: string;
+  penandatanganNtaDefault: string;
+  tembusanDefault: string[];
+}
+
 export type ArchiveCategory = 
   | 'Surat Keputusan (SK)' 
   | 'Data Registrasi' 
   | 'Akreditasi Gudep' 
   | 'Musran & Rakor' 
-  | 'Edaran & Petunjuk';
+  | 'Edaran & Petunjuk'
+  | 'Surat Masuk Kwarran'
+  | 'Surat Keluar Kwarran'
+  | 'Dokumen Umum';
 
 export interface ArchiveDocument {
   id: string;
   nomorDokumen: string;
   judul: string;
   kategori: ArchiveCategory;
+  tipeArsip?: ArchiveType; // 'surat_masuk' | 'surat_keluar' | 'arsip_umum'
   tanggalTerbit: string;
   tahun: number;
   instansiPenerbit: string;
@@ -255,6 +323,9 @@ export interface ArchiveDocument {
   aksesLevel: 'Publik / Gudep' | 'Pengurus Harian' | 'Rahasia / Terbatas';
   diunggahOleh: string;
   terakhirDiperbarui: string;
+  suratMasuk?: SuratMasukDetail;
+  suratKeluar?: SuratKeluarDetail;
+  isiSurat?: string;
 }
 
 export type GDriveType = 

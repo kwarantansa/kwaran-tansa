@@ -462,6 +462,7 @@ export const GudepRegistrationDetailModal: React.FC<GudepRegistrationDetailModal
                 disabled={isProcessing}
                 onClick={() => handleAction('Disetujui')}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 transition-all"
+                title="Verifikasi berkas pendaftaran dan masukkan pangkalan ke Buku Induk Resmi"
               >
                 {isProcessing ? (
                   <>
@@ -471,16 +472,16 @@ export const GudepRegistrationDetailModal: React.FC<GudepRegistrationDetailModal
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Verifikasi & Aktifkan Akun Gudep</span>
+                    <span>Verifikasi & Masukkan ke Buku Induk Resmi</span>
                   </>
                 )}
               </button>
             )}
 
             {registration.statusVerifikasi === 'Disetujui' && (
-              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
-                Akun Sudah Aktif
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Terverifikasi • Resmi Masuk Buku Induk Pangkalan</span>
               </span>
             )}
           </div>

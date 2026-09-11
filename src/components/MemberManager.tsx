@@ -17,11 +17,51 @@ import {
   X,
   Phone,
   RefreshCw,
-  RotateCcw
+  RotateCcw,
+  Building2,
+  PenTool,
+  AlertTriangle
 } from 'lucide-react';
-import { Member, GolonganPramuka, TingkatanPramuka, StatusKTA, StatusSync, Gudep } from '../types';
-import { exportMembersCsv } from '../utils/storage';
+import { Member, GolonganPramuka, TingkatanPramuka, StatusKTA, StatusSync, Gudep, MemberInputSource } from '../types';
+import { exportMembersCsv, isMemberGudepExisting } from '../utils/storage';
 import { PengurusAccountItem } from '../utils/auth';
+
+export interface MemberInputMeta {
+  source: 'gudep' | 'pengurus';
+  label: string;
+  badgeText: string;
+  fullDescription: string;
+  detail: string;
+  badgeClass: string;
+  icon: string;
+}
+
+export const getMemberInputMeta = (m: Member): MemberInputMeta => {
+  const isExplicitPengurus = m.inputSource === 'pengurus';
+  const hasPengurusKeyword = !!(m.inputBy && (m.inputBy.toLowerCase().includes('pengurus') || m.inputBy.toLowerCase().includes('kwarran')));
+  
+  if (isExplicitPengurus || hasPengurusKeyword) {
+    return {
+      source: 'pengurus',
+      label: 'Manual Pengurus',
+      badgeText: 'Manual Pengurus',
+      fullDescription: 'Diinput manual oleh Pengurus Kwarran',
+      detail: m.inputBy || 'Pengurus Kwarran (Manual)',
+      badgeClass: 'bg-amber-50 text-amber-900 border-amber-300 ring-1 ring-amber-400/30',
+      icon: '✍️'
+    };
+  }
+
+  return {
+    source: 'gudep',
+    label: 'Diinput Gudep',
+    badgeText: 'Diinput Gudep',
+    fullDescription: `Diinput mandiri di gudep masing-masing (${m.namaPangkalan})`,
+    detail: m.inputBy || m.namaPangkalan || 'Gugus Depan Mandiri',
+    badgeClass: 'bg-emerald-50 text-emerald-900 border-emerald-300 ring-1 ring-emerald-400/30',
+    icon: '🏫'
+  };
+};
 
 interface MemberManagerProps {
   members: Member[];
@@ -36,6 +76,7 @@ interface MemberManagerProps {
   onSyncMembers: (memberIds: string[]) => void;
   onAssignMemberAsPengurus?: (member: Member) => void;
   onOpenPengurusSettings?: () => void;
+  onCleanupOrphans?: () => void;
 }
 
 export const MemberManager: React.FC<MemberManagerProps> = ({
@@ -51,12 +92,20 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   onSyncMembers,
   onAssignMemberAsPengurus,
   onOpenPengurusSettings,
+  onCleanupOrphans,
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedGolongan, setSelectedGolongan] = useState<string>(initialGolongan);
   const [selectedGudep, setSelectedGudep] = useState<string>(initialGudepId);
   const [selectedStatusKta, setSelectedStatusKta] = useState<string>('ALL');
   const [selectedStatusSync, setSelectedStatusSync] = useState<string>('ALL');
+  const [selectedInputSource, setSelectedInputSource] = useState<string>('ALL');
+
+  // Anggota yang tidak memiliki data gudep di menu Pendataan Gudep
+  const orphanMembers = React.useMemo(() => {
+    if (!gudepList || gudepList.length === 0) return [];
+    return members.filter(m => !isMemberGudepExisting(m, gudepList));
+  }, [members, gudepList]);
 
   // React to prop changes if filtered from GudepManager
   React.useEffect(() => {
@@ -106,7 +155,10 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
     statusKta: 'Sudah Terbit',
     statusSync: 'Tersinkronisasi',
     berlakuKtaSampai: '2028-08-14',
-    tanggalBergabung: '2024-07-15'
+    tanggalBergabung: '2024-07-15',
+    inputSource: 'pengurus',
+    inputBy: 'Pengurus Kwarran (Manual)',
+    inputDate: new Date().toISOString().slice(0, 10)
   });
 
   // Helper predicates for consistent classification across counts & filter
@@ -136,6 +188,8 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   // Filtered members
   const filteredList = members.filter(m => {
     const q = searchQuery.toLowerCase().trim();
+    const meta = getMemberInputMeta(m);
+
     const matchesSearch =
       !q ||
       m.namaLengkap.toLowerCase().includes(q) ||
@@ -144,7 +198,10 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       m.namaPangkalan.toLowerCase().includes(q) ||
       (m.jabatan && m.jabatan.toLowerCase().includes(q)) ||
       (m.tingkatan && m.tingkatan.toLowerCase().includes(q)) ||
-      (m.noTelepon && m.noTelepon.toLowerCase().includes(q));
+      (m.noTelepon && m.noTelepon.toLowerCase().includes(q)) ||
+      meta.label.toLowerCase().includes(q) ||
+      meta.fullDescription.toLowerCase().includes(q) ||
+      meta.detail.toLowerCase().includes(q);
 
     let matchesGol = true;
     if (selectedGolongan === 'ALL') {
@@ -159,11 +216,26 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       matchesGol = m.golongan === selectedGolongan;
     }
 
-    const matchesGudep = selectedGudep === 'ALL' || m.gudepId === selectedGudep;
+    const targetGudepObj = gudepList.find(g => g.id === selectedGudep);
+    const matchesGudep =
+      selectedGudep === 'ALL' ||
+      m.gudepId === selectedGudep ||
+      (targetGudepObj && m.namaPangkalan && m.namaPangkalan.trim().toLowerCase() === targetGudepObj.namaPangkalan.trim().toLowerCase());
     const matchesKta = selectedStatusKta === 'ALL' || m.statusKta === selectedStatusKta;
     const matchesSync = selectedStatusSync === 'ALL' || m.statusSync === selectedStatusSync;
+    const matchesInputSource = selectedInputSource === 'ALL' || meta.source === selectedInputSource;
 
-    return matchesSearch && matchesGol && matchesGudep && matchesKta && matchesSync;
+    return matchesSearch && matchesGol && matchesGudep && matchesKta && matchesSync && matchesInputSource;
+  });
+
+  // Anggota yang relevan dengan filter pangkalan saat ini untuk penghitungan pill sumber input
+  const activeGudepObj = gudepList.find(g => g.id === selectedGudep);
+  const pangkalanScopedMembers = members.filter(m => {
+    return (
+      selectedGudep === 'ALL' ||
+      m.gudepId === selectedGudep ||
+      (activeGudepObj && m.namaPangkalan && m.namaPangkalan.trim().toLowerCase() === activeGudepObj.namaPangkalan.trim().toLowerCase())
+    );
   });
 
   const handleSelectAll = () => {
@@ -212,14 +284,23 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       statusKta: 'Sudah Terbit',
       statusSync: 'Tersinkronisasi',
       berlakuKtaSampai: '2028-08-14',
-      tanggalBergabung: '2024-07-15'
+      tanggalBergabung: '2024-07-15',
+      inputSource: 'pengurus',
+      inputBy: 'Pengurus Kwarran (Manual)',
+      inputDate: new Date().toISOString().slice(0, 10)
     });
     setIsFormOpen(true);
   };
 
   const handleOpenEditModal = (m: Member) => {
     setEditingMember(m);
-    setFormData(m);
+    const meta = getMemberInputMeta(m);
+    setFormData({
+      ...m,
+      inputSource: m.inputSource || meta.source,
+      inputBy: m.inputBy || (meta.source === 'pengurus' ? 'Pengurus Kwarran (Manual)' : m.namaPangkalan),
+      inputDate: m.inputDate || m.tanggalBergabung || new Date().toISOString().slice(0, 10)
+    });
     setIsFormOpen(true);
   };
 
@@ -228,6 +309,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
     if (!formData.namaLengkap) return;
 
     const gTarget = gudepList.find(g => g.id === formData.gudepId) || defaultGudep;
+    const isGudepSource = formData.inputSource === 'gudep';
 
     const saved: Member = {
       id: editingMember ? editingMember.id : `mem-${Date.now()}`,
@@ -253,7 +335,10 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       kualifikasiKursus: formData.kualifikasiKursus,
       jabatan: formData.jabatan || undefined,
       berlakuKtaSampai: formData.berlakuKtaSampai || '2028-08-14',
-      tanggalBergabung: formData.tanggalBergabung || '2024-07-15'
+      tanggalBergabung: formData.tanggalBergabung || '2024-07-15',
+      inputSource: (formData.inputSource as MemberInputSource) || 'pengurus',
+      inputBy: formData.inputBy || (isGudepSource ? gTarget.namaPangkalan : 'Pengurus Kwarran (Manual)'),
+      inputDate: formData.inputDate || new Date().toISOString().slice(0, 10)
     };
 
     onSaveMember(saved);
@@ -347,6 +432,21 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
             </button>
           )}
 
+          {onCleanupOrphans && (
+            <button
+              onClick={onCleanupOrphans}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border shadow-sm transition-all ${
+                orphanMembers.length > 0
+                  ? 'text-red-950 bg-red-100 hover:bg-red-200 border-red-300 animate-pulse'
+                  : 'text-stone-700 bg-[#FAF8F5] hover:bg-stone-100 border-[#E5DFD5]'
+              }`}
+              title="Hapus data anggota di buku induk yang tidak ada data gudepnya di menu pendataan gudep"
+            >
+              <Trash2 className={`w-4 h-4 ${orphanMembers.length > 0 ? 'text-red-600' : 'text-stone-500'}`} />
+              <span>Bersihkan Data Tanpa Gudep {orphanMembers.length > 0 ? `(${orphanMembers.length})` : ''}</span>
+            </button>
+          )}
+
           <button
             onClick={() => exportMembersCsv(filteredList)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-stone-700 bg-[#FAF8F5] hover:bg-stone-100 rounded-xl border border-[#E5DFD5] transition-colors"
@@ -364,6 +464,37 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Warning Banner: Anggota Tanpa Gudep */}
+      {orphanMembers.length > 0 && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 text-red-950 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-200/80 rounded-xl text-red-900 flex-shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5 text-red-700" />
+            </div>
+            <div>
+              <div className="font-bold text-red-950 text-sm flex items-center gap-2">
+                <span>Ditemukan {orphanMembers.length} Anggota Tanpa Data Gudep di Menu Pendataan Gudep</span>
+                <span className="px-2 py-0.5 bg-red-200 text-red-900 rounded-md text-[10px] font-mono font-bold">
+                  {orphanMembers.length} Data Yatim
+                </span>
+              </div>
+              <p className="text-red-800 text-xs mt-0.5 leading-relaxed">
+                Data anggota ini tercatat di Buku Induk tetapi pangkalan atau nomor gudepnya tidak ditemukan pada menu <strong>Pendataan Gudep</strong>. Klik tombol untuk membersihkan seluruh data tanpa gudep ini secara otomatis.
+              </p>
+            </div>
+          </div>
+          {onCleanupOrphans && (
+            <button
+              onClick={onCleanupOrphans}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold rounded-xl text-xs shadow-md transition-all flex-shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Hapus {orphanMembers.length} Anggota Tanpa Gudep</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* SOP Information Banner */}
       <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs flex items-start gap-3 text-amber-900 shadow-2xs">
@@ -495,7 +626,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search Box */}
           <div className="relative lg:col-span-2">
             <Search className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
@@ -556,6 +687,65 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
               <option value="Belum Diajukan">Belum Diajukan</option>
             </select>
           </div>
+
+          {/* Sumber Input Filter */}
+          <div>
+            <select
+              value={selectedInputSource}
+              onChange={(e) => setSelectedInputSource(e.target.value)}
+              className={`w-full py-2 px-3 text-xs rounded-xl focus:ring-2 focus:ring-amber-700/20 focus:outline-none font-medium transition-colors ${
+                selectedInputSource !== 'ALL'
+                  ? 'bg-amber-100 text-amber-950 border-amber-400 font-bold'
+                  : 'bg-[#FAF8F5] border border-[#E5DFD5] text-stone-700'
+              }`}
+            >
+              <option value="ALL">Semua Sumber Input</option>
+              <option value="gudep">🏫 Diinput di Gudep ({members.filter(m => getMemberInputMeta(m).source === 'gudep').length})</option>
+              <option value="pengurus">✍️ Manual Pengurus ({members.filter(m => getMemberInputMeta(m).source === 'pengurus').length})</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Sumber Input Pills */}
+        <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-[#E5DFD5]">
+          <span className="text-[11px] font-bold text-stone-600 flex items-center gap-1">
+            <span>Keterangan Asal Input:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedInputSource('ALL')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+              selectedInputSource === 'ALL'
+                ? 'bg-stone-900 text-amber-300 border-stone-800 shadow-xs'
+                : 'bg-[#FAF8F5] text-stone-600 hover:bg-stone-100 border-[#E5DFD5]'
+            }`}
+          >
+            Semua ({pangkalanScopedMembers.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedInputSource(selectedInputSource === 'gudep' ? 'ALL' : 'gudep')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border inline-flex items-center gap-1.5 ${
+              selectedInputSource === 'gudep'
+                ? 'bg-emerald-800 text-white border-emerald-900 shadow-xs ring-2 ring-emerald-500/30'
+                : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border-emerald-300'
+            }`}
+          >
+            <span>🏫</span>
+            <span>Diinput di Gudep Masing-Masing ({pangkalanScopedMembers.filter(m => getMemberInputMeta(m).source === 'gudep').length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedInputSource(selectedInputSource === 'pengurus' ? 'ALL' : 'pengurus')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border inline-flex items-center gap-1.5 ${
+              selectedInputSource === 'pengurus'
+                ? 'bg-amber-800 text-white border-amber-900 shadow-xs ring-2 ring-amber-500/30'
+                : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300'
+            }`}
+          >
+            <span>✍️</span>
+            <span>Diinput Manual oleh Pengurus ({pangkalanScopedMembers.filter(m => getMemberInputMeta(m).source === 'pengurus').length})</span>
+          </button>
         </div>
 
         <div className="flex items-center justify-between text-xs text-stone-500 pt-1 border-t border-[#E5DFD5]">
@@ -576,13 +766,14 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
             )}
           </div>
 
-          {(selectedGolongan !== 'ALL' || selectedGudep !== 'ALL' || selectedStatusKta !== 'ALL' || searchQuery) && (
+          {(selectedGolongan !== 'ALL' || selectedGudep !== 'ALL' || selectedStatusKta !== 'ALL' || selectedInputSource !== 'ALL' || searchQuery) && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setSelectedGolongan('ALL');
                 setSelectedGudep('ALL');
                 setSelectedStatusKta('ALL');
+                setSelectedInputSource('ALL');
               }}
               className="text-amber-800 font-bold hover:underline"
             >
@@ -611,6 +802,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                 <th className="py-3 px-4">NTA & NIK</th>
                 <th className="py-3 px-4">Golongan / Tingkat</th>
                 <th className="py-3 px-4">Pangkalan / Gudep</th>
+                <th className="py-3 px-4">Sumber Input</th>
                 <th className="py-3 px-4">Status KTA</th>
                 <th className="py-3 px-4">Status Sinkron</th>
                 <th className="py-3 px-4 text-right">Aksi</th>
@@ -619,7 +811,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
             <tbody className="divide-y divide-[#E5DFD5]">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 px-4 text-center">
+                  <td colSpan={9} className="py-12 px-4 text-center">
                     <div className="max-w-md mx-auto space-y-3">
                       <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-900 border border-amber-200 mx-auto flex items-center justify-center text-2xl">
                         {selectedGolongan === 'Mabigus' ? '👑' : '🔍'}
@@ -749,7 +941,34 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                     <span className="font-semibold text-stone-800 block truncate max-w-[160px]">
                       {m.namaPangkalan}
                     </span>
-                    <span className="text-stone-400 text-[10.5px]">Gudep {m.noGudep}</span>
+                    <span className="text-stone-400 text-[10.5px] block">Gudep {m.noGudep}</span>
+                    {!isMemberGudepExisting(m, gudepList) && (
+                      <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded mt-0.5" title="Pangkalan/Gudep ini tidak terdaftar di menu Pendataan Gudep">
+                        <AlertTriangle className="w-2.5 h-2.5 text-red-600" />
+                        Gudep Tidak Ada di Pendataan
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Sumber Input */}
+                  <td className="py-3 px-4">
+                    {(() => {
+                      const meta = getMemberInputMeta(m);
+                      return (
+                        <div className="space-y-1">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10.5px] font-bold border ${meta.badgeClass}`}>
+                            <span>{meta.icon}</span>
+                            <span>{meta.badgeText}</span>
+                          </span>
+                          <span 
+                            className="block text-[10px] text-stone-500 font-medium truncate max-w-[150px]" 
+                            title={`${meta.fullDescription} • Penginput: ${meta.detail}`}
+                          >
+                            {meta.source === 'pengurus' ? (m.inputBy || 'Pengurus Kwarran') : (m.namaPangkalan || meta.detail)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Status KTA */}
@@ -928,10 +1147,30 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] text-stone-500 font-sans">Pangkalan:</span>
-                    <span className="font-sans font-medium text-stone-700 truncate max-w-[200px] text-[11px]">
-                      {m.namaPangkalan} ({m.noGudep})
-                    </span>
+                    <div className="text-right">
+                      <span className="font-sans font-medium text-stone-700 truncate max-w-[200px] text-[11px] block">
+                        {m.namaPangkalan} ({m.noGudep})
+                      </span>
+                      {!isMemberGudepExisting(m, gudepList) && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 px-1 py-0.2 rounded mt-0.5">
+                          <AlertTriangle className="w-2.5 h-2.5 text-red-600" />
+                          Gudep Tidak Terdaftar di Pendataan
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {(() => {
+                    const meta = getMemberInputMeta(m);
+                    return (
+                      <div className="flex justify-between items-center pt-1 border-t border-[#EAE4DC]">
+                        <span className="text-[10px] text-stone-500 font-sans">Sumber Input:</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${meta.badgeClass}`}>
+                          <span>{meta.icon}</span>
+                          <span>{meta.badgeText}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                   {m.noTelepon && m.noTelepon !== '-' && (
                     <div className="flex justify-between items-center pt-1 border-t border-[#EAE4DC]">
                       <span className="text-[10px] text-stone-500 font-sans flex items-center gap-1">
@@ -1263,6 +1502,83 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                   <p className="text-[10.5px] text-stone-500 mt-1">
                     Digunakan untuk koordinasi pangkalan & verifikasi KTA digital.
                   </p>
+                </div>
+
+                {/* Keterangan Asal Sumber Input Anggota */}
+                <div className="sm:col-span-2 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/90 space-y-2.5">
+                  <label className="block font-bold text-stone-900 text-xs">
+                    Keterangan Asal Sumber Input Anggota *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <label className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 transition-all ${
+                      formData.inputSource === 'gudep'
+                        ? 'bg-emerald-50 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20 text-emerald-950'
+                        : 'bg-white border-stone-200 hover:bg-stone-50 text-stone-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="inputSource"
+                        value="gudep"
+                        checked={formData.inputSource === 'gudep'}
+                        onChange={() => setFormData({ 
+                          ...formData, 
+                          inputSource: 'gudep',
+                          inputBy: formData.namaPangkalan || 'Gugus Depan Mandiri'
+                        })}
+                        className="mt-0.5 text-emerald-600"
+                      />
+                      <div>
+                        <div className="font-bold text-xs flex items-center gap-1.5">
+                          <span>🏫</span>
+                          <span>Diinput di Gudep Masing-Masing</span>
+                        </div>
+                        <p className="text-[11px] text-stone-500 mt-0.5">
+                          Data diinput mandiri oleh Gugus Depan pangkalan melalui akun pembina Gudep.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 transition-all ${
+                      formData.inputSource === 'pengurus'
+                        ? 'bg-amber-100/70 border-amber-500 shadow-xs ring-2 ring-amber-500/20 text-amber-950'
+                        : 'bg-white border-stone-200 hover:bg-stone-50 text-stone-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="inputSource"
+                        value="pengurus"
+                        checked={formData.inputSource === 'pengurus'}
+                        onChange={() => setFormData({ 
+                          ...formData, 
+                          inputSource: 'pengurus',
+                          inputBy: 'Pengurus Kwarran (Manual)'
+                        })}
+                        className="mt-0.5 text-amber-600"
+                      />
+                      <div>
+                        <div className="font-bold text-xs flex items-center gap-1.5">
+                          <span>✍️</span>
+                          <span>Diinput Manual oleh Pengurus</span>
+                        </div>
+                        <p className="text-[11px] text-stone-500 mt-0.5">
+                          Data diinput langsung secara manual oleh Pengurus Kwarran Tanah Sareal.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-700 mb-1">
+                      Catatan / Instansi Penginput:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.inputBy || ''}
+                      onChange={(e) => setFormData({ ...formData, inputBy: e.target.value })}
+                      placeholder="Contoh: Pengurus Kwarran (Kak Mulyadi) atau SDN Kebon Pedes 1"
+                      className="w-full p-2 bg-white border border-[#E5DFD5] rounded-lg text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 

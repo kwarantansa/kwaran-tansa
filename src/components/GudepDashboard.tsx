@@ -330,7 +330,10 @@ export const GudepDashboard: React.FC<GudepDashboardProps> = ({
       statusKta: 'Menunggu Verifikasi',
       statusSync: 'Tersinkronisasi',
       berlakuKtaSampai: '2028-12-31',
-      tanggalBergabung: new Date().toISOString().slice(0, 10)
+      tanggalBergabung: new Date().toISOString().slice(0, 10),
+      inputSource: 'gudep',
+      inputBy: pangkalanName,
+      inputDate: new Date().toISOString().slice(0, 10)
     };
 
     await onSaveMember(newMember);

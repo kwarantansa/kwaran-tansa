@@ -287,6 +287,35 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
       {activeMainTab === 'buku_induk' && (
         <div className="space-y-6">
 
+      {/* Gudep Verification Sync Banner */}
+      <div className="bg-gradient-to-r from-emerald-50 via-[#F7FAF8] to-teal-50/70 border border-emerald-200/80 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+            ✓
+          </div>
+          <div>
+            <div className="font-bold text-emerald-950 flex items-center gap-2">
+              <span>Buku Induk Pangkalan Resmi Terverifikasi</span>
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-200">
+                Otomatis Tersinkron
+              </span>
+            </div>
+            <p className="text-emerald-800 text-[11.5px] mt-0.5">
+              Seluruh pendaftaran Gugus Depan yang telah diverifikasi & disetujui pengurus otomatis langsung terdata resmi dalam Buku Induk Pangkalan ini.
+            </p>
+          </div>
+        </div>
+        {pendingRegCount > 0 && (
+          <button
+            onClick={() => setActiveMainTab('verifikasi_registrasi')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-900 bg-white hover:bg-emerald-100 border border-emerald-300 rounded-xl transition-all shadow-2xs whitespace-nowrap self-start sm:self-auto"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+            <span>{pendingRegCount} Menunggu Verifikasi</span>
+          </button>
+        )}
+      </div>
+
       {/* SISKA - Pusat Data Anggota Integration Notice */}
       <div className="bg-gradient-to-r from-amber-50/90 via-[#FAF8F5] to-orange-50/80 border border-amber-200/80 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
         <div className="flex items-start sm:items-center gap-3">
@@ -428,6 +457,29 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
                 {gudep.namaPangkalan}
               </h3>
               
+              {(() => {
+                const matchedReg = registrations.find(r => 
+                  r.namaPangkalan.trim().toLowerCase() === gudep.namaPangkalan.trim().toLowerCase() ||
+                  (r.noGudepPa && gudep.noGudepPa && r.noGudepPa === gudep.noGudepPa)
+                );
+                if (matchedReg && matchedReg.statusVerifikasi === 'Disetujui') {
+                  return (
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200" title={`Pangkalan terdaftar resmi lewat verifikasi (Reg: ${matchedReg.noRegistrasi})`}>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Terverifikasi Resmi</span>
+                      </span>
+                      {matchedReg.akunGudep?.username && (
+                        <span className="text-[10px] font-mono text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded">
+                          @{matchedReg.akunGudep.username}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <p className="text-xs text-stone-500 flex items-center gap-1.5 mt-1">
                 <MapPin className="w-3.5 h-3.5 text-amber-800 flex-shrink-0" />
                 <span className="truncate">Kel. {gudep.kelurahan}, Tanah Sareal</span>
@@ -436,7 +488,8 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
 
             {/* Middle Info with Pusat Data linking */}
             {(() => {
-              const gudepMembers = members.filter(m => m.gudepId === gudep.id);
+              const normP = gudep.namaPangkalan.trim().toLowerCase();
+              const gudepMembers = members.filter(m => m.gudepId === gudep.id || (m.namaPangkalan && m.namaPangkalan.trim().toLowerCase() === normP));
               const mabigusMem = gudepMembers.find(m => m.golongan === 'Mabigus' || m.namaLengkap.toLowerCase().trim() === gudep.kaMabigus.toLowerCase().trim());
               const pembinaMembers = gudepMembers.filter(m => ['Pembina', 'Pelatih'].includes(m.golongan));
               const mudaCount = gudepMembers.filter(m => ['Siaga', 'Penggalang', 'Penegak', 'Pandega'].includes(m.golongan)).length || gudep.jumlahAnggotaMuda;
@@ -736,7 +789,7 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
                       {reg.statusVerifikasi === 'Disetujui' ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          Aktif
+                          Masuk Buku Induk
                         </span>
                       ) : reg.statusVerifikasi === 'Ditolak' ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-800 bg-red-100 px-2.5 py-1 rounded-full border border-red-300">
@@ -823,14 +876,29 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
                     {onVerifyRegistration && reg.statusVerifikasi !== 'Disetujui' && (
                       <button
                         onClick={() => {
-                          if (confirm(`Verifikasi & aktifkan akun Gudep ${reg.namaPangkalan}?`)) {
-                            onVerifyRegistration(reg.id, 'Disetujui', 'Disetujui oleh Pengurus Kwarran');
+                          if (confirm(`Verifikasi pendaftaran dan masukkan ke Buku Induk Resmi?\n\n• Pangkalan: ${reg.namaPangkalan}\n• No. Gudep: ${reg.nomorGudep}\n• Ka Mabigus: ${reg.kaMabigus}\n\nPangkalan ini akan berstatus Disetujui, akun @${reg.akunGudep?.username} diaktifkan, dan resmi dimasukkan ke Buku Induk Pangkalan Kwarran Tanah Sareal.`)) {
+                            onVerifyRegistration(reg.id, 'Disetujui', 'Disetujui oleh Pengurus Kwarran dan resmi masuk Buku Induk Pangkalan');
                           }
                         }}
                         className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                        title="Verifikasi pendaftaran dan masukkan pangkalan ke Buku Induk Resmi"
                       >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Setujui & Aktifkan</span>
+                        <Building2 className="w-3.5 h-3.5" />
+                        <span>Setujui & Masukkan ke Buku Induk</span>
+                      </button>
+                    )}
+
+                    {reg.statusVerifikasi === 'Disetujui' && (
+                      <button
+                        onClick={() => {
+                          setActiveMainTab('buku_induk');
+                          setSearchQuery(reg.namaPangkalan);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-xs rounded-xl border border-emerald-300 flex items-center gap-1.5 transition-colors"
+                        title="Buka data resmi pangkalan ini di Buku Induk Pangkalan"
+                      >
+                        <Building2 className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Buka di Buku Induk</span>
                       </button>
                     )}
 
@@ -1130,10 +1198,27 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
 
               {/* Personalia SISKA Terdaftar di Pusat Data Anggota */}
               {(() => {
-                const gudepMembers = members.filter(m => m.gudepId === viewingGudep.id);
-                const mabigusMem = gudepMembers.find(m => m.golongan === 'Mabigus' || m.namaLengkap.toLowerCase().trim() === viewingGudep.kaMabigus.toLowerCase().trim());
-                const pembinaPaMem = gudepMembers.find(m => m.jenisKelamin === 'L' && ['Pembina', 'Pelatih'].includes(m.golongan));
-                const pembinaPiMem = gudepMembers.find(m => m.jenisKelamin === 'P' && ['Pembina', 'Pelatih'].includes(m.golongan));
+                const normPangkalan = viewingGudep.namaPangkalan.trim().toLowerCase();
+                const gudepMembers = members.filter(m => 
+                  m.gudepId === viewingGudep.id || 
+                  (m.namaPangkalan && m.namaPangkalan.trim().toLowerCase() === normPangkalan)
+                );
+                const mabigusMem = gudepMembers.find(m => 
+                  m.golongan === 'Mabigus' || 
+                  m.tingkatan === 'Ketua Mabigus' ||
+                  m.namaLengkap.toLowerCase().trim() === viewingGudep.kaMabigus.toLowerCase().trim() ||
+                  (m.jabatan && m.jabatan.toLowerCase().includes('mabigus'))
+                );
+                const pembinaPaMem = gudepMembers.find(m => 
+                  m.namaLengkap.toLowerCase().trim() === viewingGudep.pembinaGudepPa.toLowerCase().trim() ||
+                  (m.jenisKelamin === 'L' && ['Pembina', 'Pelatih'].includes(m.golongan)) ||
+                  (m.jabatan && m.jabatan.toLowerCase().includes('pembina') && m.jenisKelamin === 'L')
+                );
+                const pembinaPiMem = gudepMembers.find(m => 
+                  m.namaLengkap.toLowerCase().trim() === viewingGudep.pembinaGudepPi.toLowerCase().trim() ||
+                  (m.jenisKelamin === 'P' && ['Pembina', 'Pelatih'].includes(m.golongan)) ||
+                  (m.jabatan && m.jabatan.toLowerCase().includes('pembina') && m.jenisKelamin === 'P')
+                );
 
                 return (
                   <div className="space-y-3 pt-2">

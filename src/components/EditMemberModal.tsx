@@ -79,7 +79,10 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       statusSync: 'Tersinkronisasi',
       kualifikasiKursus: 'Belum',
       berlakuKtaSampai: '2028-12-31',
-      tanggalBergabung: new Date().toISOString().slice(0, 10)
+      tanggalBergabung: new Date().toISOString().slice(0, 10),
+      inputSource: 'gudep',
+      inputBy: pangkalanName,
+      inputDate: new Date().toISOString().slice(0, 10)
     };
   });
 
@@ -121,7 +124,12 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
 
     setIsSaving(true);
     try {
-      await onSave(formData);
+      await onSave({
+        ...formData,
+        inputSource: formData.inputSource || 'gudep',
+        inputBy: formData.inputBy || pangkalanName,
+        inputDate: formData.inputDate || new Date().toISOString().slice(0, 10)
+      });
       onClose();
     } catch (err: any) {
       console.error('Error saving member:', err);
@@ -387,6 +395,17 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                 className="flex-1 px-3 py-2 bg-[#251309] border border-[#432314] rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-amber-500"
               />
             </div>
+          </div>
+
+          {/* Sumber Input Notice */}
+          <div className="p-3 bg-[#251309] border border-[#432314] rounded-xl flex items-center justify-between text-xs">
+            <span className="text-stone-400">
+              Keterangan Asal Sumber Input:
+            </span>
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 flex items-center gap-1.5">
+              <span>🏫</span>
+              <span>Diinput Mandiri di Gudep ({formData.inputBy || pangkalanName})</span>
+            </span>
           </div>
 
           {/* Footer actions */}

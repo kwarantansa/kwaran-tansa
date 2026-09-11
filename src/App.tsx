@@ -38,7 +38,8 @@ import {
   loadRegistrations,
   saveRegistrations,
   resetToInitialData,
-  syncGudepLeadersWithMembers
+  syncGudepLeadersWithMembers,
+  cleanOrphanAndDuplicateMembers
 } from './utils/storage';
 import { getStoredAuthUser, setStoredAuthUser, getCustomPengurusList, saveCustomPengurusList, PengurusAccountItem } from './utils/auth';
 import { 
@@ -80,6 +81,11 @@ import {
   DEFAULT_HERO_BACKGROUND,
   GudepRegistration
 } from './types';
+import { 
+  convertRegistrationToGudep, 
+  findMatchingGudep, 
+  reconcileVerifiedRegistrationsWithBukuInduk 
+} from './utils/gudepUtils';
 import { 
   ShieldCheck, 
   Building2, 
@@ -141,8 +147,26 @@ export default function App() {
   // Realtime Cloud Database Setup & Subscriptions
   useEffect(() => {
     // 1. Load initial cached local storage data first
-    setGudepList(loadGudepList());
-    setMembers(loadMemberList());
+    const cachedGudep = loadGudepList();
+    const cachedMembers = loadMemberList();
+    const cachedRegs = loadRegistrations();
+
+    let initialMembers = cachedMembers;
+    if (cachedGudep && cachedGudep.length > 0) {
+      const { cleanedMembers, removedMemberIds } = cleanOrphanAndDuplicateMembers(cachedMembers, cachedGudep);
+      if (removedMemberIds.length > 0) {
+        removedMemberIds.forEach(id => {
+          deleteMemberFromCloud(id).catch(() => {});
+        });
+      }
+      initialMembers = syncGudepLeadersWithMembers(cachedGudep, cleanedMembers, cachedRegs);
+    } else {
+      initialMembers = syncGudepLeadersWithMembers(cachedGudep, cachedMembers, cachedRegs);
+    }
+
+    setGudepList(cachedGudep);
+    setMembers(initialMembers);
+    saveMemberList(initialMembers);
     setBatches(loadBatchesList());
     setArchives(loadArchives());
     setSemesterReports(loadSemesterReports());
@@ -169,24 +193,39 @@ export default function App() {
       setGudepList(data);
       saveGudepList(data);
       setIsCloudSynced(true);
+      const currentRegs = loadRegistrations();
       setMembers(prev => {
-        const synced = syncGudepLeadersWithMembers(data, prev);
-        saveMemberList(synced);
-        return synced;
+        if (data && data.length > 0) {
+          const { cleanedMembers, removedMemberIds } = cleanOrphanAndDuplicateMembers(prev, data);
+          if (removedMemberIds.length > 0) {
+            removedMemberIds.forEach(id => {
+              deleteMemberFromCloud(id).catch(() => {});
+            });
+          }
+          const synced = syncGudepLeadersWithMembers(data, cleanedMembers, currentRegs);
+          saveMemberList(synced);
+          return synced;
+        }
+        return prev;
       });
     });
 
     const unsubMembers = subscribeToMembers((data) => {
       const currentGudep = loadGudepList();
-      const synced = syncGudepLeadersWithMembers(currentGudep, data);
-      setMembers(synced);
-      saveMemberList(synced);
-      // Simpan pemimpin gudep (Ka Mabigus & Pembina) yang baru terbuat ke cloud
-      const newLeaders = synced.filter(s => !data.some(d => d.id === s.id));
-      if (newLeaders.length > 0) {
-        newLeaders.forEach(item => {
-          saveMemberToCloud(item).catch(() => {});
-        });
+      const currentRegs = loadRegistrations();
+      if (currentGudep && currentGudep.length > 0) {
+        const { cleanedMembers, removedMemberIds } = cleanOrphanAndDuplicateMembers(data, currentGudep);
+        if (removedMemberIds.length > 0) {
+          removedMemberIds.forEach(id => {
+            deleteMemberFromCloud(id).catch(() => {});
+          });
+        }
+        const synced = syncGudepLeadersWithMembers(currentGudep, cleanedMembers, currentRegs);
+        setMembers(synced);
+        saveMemberList(synced);
+      } else {
+        setMembers(data);
+        saveMemberList(data);
       }
     });
 
@@ -245,6 +284,45 @@ export default function App() {
       if (unsubRegistrations) unsubRegistrations();
     };
   }, []);
+
+  // Sinkronisasi otomatis: Pastikan semua Gugus Depan yang telah diverifikasi (status 'Disetujui') otomatis masuk ke Buku Induk Pangkalan Resmi
+  useEffect(() => {
+    if (registrations.length === 0) return;
+    const { updatedList, hasChanges, newEntries } = reconcileVerifiedRegistrationsWithBukuInduk(registrations, gudepList);
+    if (hasChanges && newEntries.length > 0) {
+      setGudepList(updatedList);
+      saveGudepList(updatedList);
+      newEntries.forEach(g => {
+        saveGudepToCloud(g).catch(() => {});
+      });
+      setMembers(prev => {
+        const synced = syncGudepLeadersWithMembers(updatedList, prev, registrations);
+        saveMemberList(synced);
+        const newLeaders = synced.filter(s => !prev.some(p => p.id === s.id));
+        newLeaders.forEach(item => {
+          saveMemberToCloud(item).catch(() => {});
+        });
+        return synced;
+      });
+    }
+  }, [registrations, gudepList]);
+
+  // Sinkronisasi otomatis: Pastikan personil pimpinan (Ka Mabigus & Pembina) seluruh Gudep selalu terdaftar di Buku Induk Anggota
+  useEffect(() => {
+    if (gudepList.length === 0) return;
+    setMembers(prev => {
+      const synced = syncGudepLeadersWithMembers(gudepList, prev, registrations);
+      if (synced.length !== prev.length) {
+        saveMemberList(synced);
+        const newLeaders = synced.filter(s => !prev.some(p => p.id === s.id));
+        newLeaders.forEach(item => {
+          saveMemberToCloud(item).catch(() => {});
+        });
+        return synced;
+      }
+      return prev;
+    });
+  }, [gudepList, registrations]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -433,16 +511,53 @@ export default function App() {
   };
 
   const handleDeleteGudep = async (id: string) => {
+    const deletedGudep = gudepList.find(g => g.id === id);
     const updated = gudepList.filter(g => g.id !== id);
     setGudepList(updated);
     saveGudepList(updated);
 
+    // Otomatis hapus anggota di buku induk yang terikat dengan Gudep ini (karena gudepnya sudah dihapus dari Pendataan Gudep)
+    const { cleanedMembers, removedMemberIds } = cleanOrphanAndDuplicateMembers(members, updated);
+    setMembers(cleanedMembers);
+    saveMemberList(cleanedMembers);
+
     try {
       await deleteGudepFromCloud(id);
+      for (const mid of removedMemberIds) {
+        await deleteMemberFromCloud(mid);
+      }
     } catch (err) {
       console.warn('Realtime cloud delete error:', err);
     }
-    showToast('Data Gugus Depan berhasil dihapus.');
+    showToast(`Data Gugus Depan${deletedGudep ? ` (${deletedGudep.namaPangkalan})` : ''} dan ${removedMemberIds.length} data anggota terkait di Buku Induk berhasil dihapus.`);
+  };
+
+  // Handler Pembersihan Anggota Tanpa Data Gudep di Menu Pendataan Gudep
+  const handleCleanupOrphanMembers = async () => {
+    if (gudepList.length === 0) {
+      showToast('Data Gugus Depan belum tersedia di menu Pendataan Gudep.');
+      return;
+    }
+
+    const { cleanedMembers, removedMemberIds, orphanCount, duplicateCount } = cleanOrphanAndDuplicateMembers(members, gudepList);
+
+    if (removedMemberIds.length === 0) {
+      showToast('Seluruh anggota di Buku Induk sudah valid dan memiliki data pangkalan di menu Pendataan Gudep.');
+      return;
+    }
+
+    setMembers(cleanedMembers);
+    saveMemberList(cleanedMembers);
+
+    try {
+      for (const id of removedMemberIds) {
+        await deleteMemberFromCloud(id);
+      }
+    } catch (err) {
+      console.warn('Error deleting cleaned members from cloud:', err);
+    }
+
+    showToast(`Pembersihan Berhasil: ${orphanCount} anggota tanpa Gudep dan ${duplicateCount} data duplikat telah dihapus dari Buku Induk & Cloud.`);
   };
 
   // Registration Handlers (Public & Admin Verification)
@@ -487,41 +602,32 @@ export default function App() {
     }
 
     if (status === 'Disetujui') {
-      // Create or update in Buku Induk Gudep
-      const existingGudep = gudepList.find(g => 
-        g.namaPangkalan.toLowerCase() === targetReg.namaPangkalan.toLowerCase() ||
-        (targetReg.nomorGudep && g.nomorGudep === targetReg.nomorGudep)
-      );
+      // Masukkan atau perbarui di Buku Induk Pangkalan Resmi
+      const existing = findMatchingGudep(targetReg, gudepList);
+      const targetGudep = convertRegistrationToGudep(targetReg, existing);
 
-      if (!existingGudep) {
-        const newGudep: Gudep = {
-          id: `gudep-${Date.now()}`,
-          noGudepPa: targetReg.noGudepPa || targetReg.nomorGudep?.split('/')[0]?.trim() || '04.071',
-          noGudepPi: targetReg.noGudepPi || targetReg.nomorGudep?.split('/')[1]?.trim() || '04.072',
-          namaPangkalan: targetReg.namaPangkalan,
-          jenjang: targetReg.jenjang,
-          kelurahan: targetReg.kelurahan,
-          alamat: targetReg.alamatLengkap || targetReg.alamat || '',
-          kaMabigus: targetReg.kaMabigus,
-          pembinaGudepPa: targetReg.namaPembinaPa,
-          pembinaGudepPi: targetReg.namaPembinaPi,
-          kontakHp: targetReg.noWaMabigus || targetReg.noWaPembinaPa || targetReg.akunGudep.noWaPendaftar || '081287654321',
-          email: targetReg.akunGudep.emailPendaftar || '',
-          akreditasi: 'Belum Terakreditasi',
-          tahunBerdiri: 2020,
-          jumlahAnggotaMuda: (targetReg.jumlahPutra || 0) + (targetReg.jumlahPutri || 0),
-          jumlahPembina: 2,
-          statusSync: 'Tersinkronisasi',
-          terakhirDiperbarui: new Date().toISOString().slice(0, 10)
-        };
-        const updatedGudep = [newGudep, ...gudepList];
-        setGudepList(updatedGudep);
-        saveGudepList(updatedGudep);
-        saveGudepToCloud(newGudep).catch(() => {});
+      let updatedGudepList: Gudep[];
+      if (existing) {
+        updatedGudepList = gudepList.map(g => g.id === existing.id ? targetGudep : g);
+      } else {
+        updatedGudepList = [targetGudep, ...gudepList];
       }
 
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
-      showToast(`Pendaftaran Gudep ${targetReg.namaPangkalan} disetujui & akun @${targetReg.akunGudep.username} diaktifkan!`);
+      setGudepList(updatedGudepList);
+      saveGudepList(updatedGudepList);
+      saveGudepToCloud(targetGudep).catch(err => console.warn('Gagal menyimpan Gudep ke Cloud:', err));
+
+      // Otomatis sinkronkan Ka Mabigus & Pembina ke Buku Induk Anggota
+      const updatedMembers = syncGudepLeadersWithMembers(updatedGudepList, members, registrations);
+      setMembers(updatedMembers);
+      saveMemberList(updatedMembers);
+      const newMems = updatedMembers.filter(s => !members.some(m => m.id === s.id));
+      newMems.forEach(m => {
+        saveMemberToCloud(m).catch(() => {});
+      });
+
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+      showToast(`Pangkalan ${targetReg.namaPangkalan} diverifikasi & personil resmi masuk ke Buku Induk!`);
     } else {
       showToast(`Pendaftaran Gudep ${targetReg.namaPangkalan} ditolak / diberi catatan revisi.`);
     }
@@ -1039,6 +1145,7 @@ export default function App() {
                 onOpenKtaModal={(m) => setSelectedKtaMember(m)}
                 onSyncMembers={handleSyncMembers}
                 onOpenPengurusSettings={() => setIsPengurusSettingsOpen(true)}
+                onCleanupOrphans={handleCleanupOrphanMembers}
               />
             )}
 
@@ -1057,6 +1164,7 @@ export default function App() {
               <DigitalArchiveManager
                 archives={archives}
                 gudepList={gudepList}
+                members={members}
                 onSaveArchive={handleSaveArchive}
                 onDeleteArchive={handleDeleteArchive}
                 gdriveSettings={gdriveSettings}

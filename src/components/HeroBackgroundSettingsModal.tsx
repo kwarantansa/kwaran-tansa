@@ -87,12 +87,18 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
 
   if (!isOpen) return null;
 
+  const updateFields = (fields: Partial<HeroBackgroundConfig>) => {
+    setCurrentConfig((prev) => {
+      const updated = { ...prev, ...fields };
+      if (onLivePreview) {
+        onLivePreview(updated);
+      }
+      return updated;
+    });
+  };
+
   const updateField = <K extends keyof HeroBackgroundConfig>(field: K, value: HeroBackgroundConfig[K]) => {
-    const updated = { ...currentConfig, [field]: value };
-    setCurrentConfig(updated);
-    if (onLivePreview) {
-      onLivePreview(updated);
-    }
+    updateFields({ [field]: value } as Partial<HeroBackgroundConfig>);
   };
 
   // Handle local file upload with auto-compression
@@ -102,7 +108,8 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
 
     setUploadError(null);
 
-    if (!file.type.startsWith('image/')) {
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp|avif)$/i.test(file.name);
+    if (!isImage) {
       setUploadError('Mohon pilih file gambar yang valid (PNG, JPG, WEBP, atau SVG).');
       return;
     }
@@ -110,9 +117,17 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
     try {
       setIsProcessingImage(true);
       // Automatically resize and optimize so it saves cleanly to Cloud Firestore and localStorage
-      const optimizedDataUrl = await compressImageFile(file, 512, 512, 0.88);
-      updateField('logoUrl', optimizedDataUrl);
-      updateField('logoTitle', file.name.replace(/\.[^/.]+$/, ''));
+      const optimizedDataUrl = await compressImageFile(file, 480, 480, 0.88);
+      
+      // Clear custom text URL so it doesn't accidentally override the uploaded image on save
+      setCustomUrlInput('');
+
+      // Atomically update both logoUrl and logoTitle together
+      const fileNameClean = file.name.replace(/\.[^/.]+$/, '');
+      updateFields({
+        logoUrl: optimizedDataUrl,
+        logoTitle: fileNameClean
+      });
       setIsSavedNotice(false);
     } catch (err: any) {
       console.error('Error optimizing image:', err);
@@ -133,8 +148,10 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
       const normalized = normalizeImageUrl(raw);
       const testResult = await checkImageUrlCanLoad(normalized);
       
-      updateField('logoUrl', normalized);
-      updateField('logoTitle', normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL');
+      updateFields({
+        logoUrl: normalized,
+        logoTitle: normalized.startsWith('/logo-kwarran') ? 'Logo Resmi Kwarran 0917-06' : 'Logo Kustom URL'
+      });
       setCustomUrlInput('');
       
       if (!testResult.ok && testResult.reason) {
@@ -149,6 +166,7 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
 
   const handleResetToDefault = () => {
     setCurrentConfig(DEFAULT_HERO_BACKGROUND);
+    setCustomUrlInput('');
     if (onLivePreview) {
       onLivePreview(DEFAULT_HERO_BACKGROUND);
     }
@@ -412,8 +430,11 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
                     key={preset.id}
                     type="button"
                     onClick={() => {
-                      updateField('logoUrl', preset.url);
-                      updateField('logoTitle', preset.title);
+                      updateFields({
+                        logoUrl: preset.url,
+                        logoTitle: preset.title
+                      });
+                      setCustomUrlInput('');
                     }}
                     className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${
                       isSelected 
@@ -536,6 +557,44 @@ export const HeroBackgroundSettingsModal: React.FC<HeroBackgroundSettingsModalPr
                   </div>
                 </div>
               </div>
+
+              {/* Active Selected Logo Indicator */}
+              {currentConfig.logoUrl && (
+                <div className="p-3 rounded-xl bg-[#14201D] border border-amber-500/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-[#0A100F] p-1 border border-amber-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <img
+                        src={currentConfig.logoUrl}
+                        alt={currentConfig.logoTitle || 'Logo Terpilih'}
+                        className="w-full h-full object-contain"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
+                        }}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-amber-300 truncate">
+                        Logo Terpilih: {currentConfig.logoTitle || 'Kustom'}
+                      </p>
+                      <p className="text-[10px] text-stone-400 truncate">
+                        {currentConfig.logoUrl.startsWith('data:') 
+                          ? '✓ File Gambar Lokal Siap Diterapkan (Base64)' 
+                          : currentConfig.logoUrl}
+                      </p>
+                    </div>
+                  </div>
+                  {currentConfig.logoUrl !== '/logo-kwarran-tanah-sareal.png' && (
+                    <button
+                      type="button"
+                      onClick={handleResetToDefault}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-stone-300 hover:text-white bg-stone-800 hover:bg-stone-700 rounded-lg transition-colors flex-shrink-0"
+                    >
+                      Reset Default
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

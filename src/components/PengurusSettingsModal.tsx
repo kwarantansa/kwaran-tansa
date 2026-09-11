@@ -1660,7 +1660,10 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                     <button
                       key={preset.id}
                       type="button"
-                      onClick={() => setBgConfig({ ...bgConfig, logoUrl: preset.url, logoTitle: preset.title })}
+                      onClick={() => {
+                        setBgConfig((prev) => ({ ...prev, logoUrl: preset.url, logoTitle: preset.title }));
+                        setCustomBgUrlInput('');
+                      }}
                       className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${
                         isSelected 
                           ? 'bg-amber-50 border-amber-500 shadow-sm ring-2 ring-amber-400/50' 
@@ -1728,19 +1731,23 @@ export const PengurusSettingsModal: React.FC<PengurusSettingsModalProps> = ({
                           if (!file) return;
                           setLogoUploadError(null);
 
-                          if (!file.type.startsWith('image/')) {
+                          const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp|avif)$/i.test(file.name);
+                          if (!isImage) {
                             setLogoUploadError('Mohon pilih file gambar yang valid (PNG, JPG, WEBP, atau SVG).');
                             return;
                           }
 
                           try {
                             setIsProcessingLogo(true);
-                            const optimizedDataUrl = await compressImageFile(file, 512, 512, 0.88);
-                            setBgConfig({
-                              ...bgConfig,
+                            const optimizedDataUrl = await compressImageFile(file, 480, 480, 0.88);
+                            setCustomBgUrlInput('');
+                            setBgConfig((prev) => ({
+                              ...prev,
                               logoUrl: optimizedDataUrl,
                               logoTitle: file.name.replace(/\.[^/.]+$/, '')
-                            });
+                            }));
+                            setSaveSuccessMsg(`File logo "${file.name}" berhasil diunggah! Klik tombol "Simpan Pengaturan" di bawah untuk menyimpan permanen.`);
+                            setTimeout(() => setSaveSuccessMsg(''), 4000);
                           } catch (err: any) {
                             console.error('Error compressing logo:', err);
                             setLogoUploadError(err.message || 'Gagal memproses file gambar.');

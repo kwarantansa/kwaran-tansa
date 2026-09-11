@@ -7,13 +7,13 @@
 
 export async function compressImageFile(
   file: File,
-  maxWidth = 512,
-  maxHeight = 512,
-  quality = 0.85
+  maxWidth = 480,
+  maxHeight = 480,
+  quality = 0.88
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     // If it's SVG, base64 dataURL directly since it's already vector
-    if (file.type === 'image/svg+xml') {
+    if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = () => reject(new Error('Gagal membaca file SVG.'));
@@ -48,13 +48,48 @@ export async function compressImageFile(
           return;
         }
 
-        // Draw image onto canvas
+        // Enable high quality scaling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Draw image onto canvas (cleared canvas preserves alpha channel)
+        ctx.clearRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Keep PNG transparency if original is PNG
-        const isPng = file.type === 'image/png';
-        const mimeType = isPng ? 'image/png' : 'image/jpeg';
-        const resultDataUrl = canvas.toDataURL(mimeType, isPng ? undefined : quality);
+        const isTransparent = 
+          file.type === 'image/png' || 
+          file.type === 'image/webp' || 
+          file.type === 'image/gif' ||
+          /\.(png|webp|gif)$/i.test(file.name);
+
+        let resultDataUrl = '';
+
+        if (isTransparent) {
+          // Attempt WebP first for ultra-lightweight size with full alpha channel support
+          try {
+            const webpUrl = canvas.toDataURL('image/webp', quality);
+            if (webpUrl.startsWith('data:image/webp') && webpUrl.length < 500000) {
+              resultDataUrl = webpUrl;
+            } else {
+              resultDataUrl = canvas.toDataURL('image/png');
+            }
+          } catch {
+            resultDataUrl = canvas.toDataURL('image/png');
+          }
+
+          // If PNG is still quite heavy (> 600KB), fallback to webp or compressed PNG
+          if (resultDataUrl.length > 700000) {
+            try {
+              const fallbackWebp = canvas.toDataURL('image/webp', 0.82);
+              if (fallbackWebp.startsWith('data:image/webp')) {
+                resultDataUrl = fallbackWebp;
+              }
+            } catch {}
+          }
+        } else {
+          resultDataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+
         resolve(resultDataUrl);
       };
       img.onerror = () => reject(new Error('Format gambar tidak dapat diproses oleh browser.'));

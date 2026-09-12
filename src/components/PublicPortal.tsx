@@ -29,8 +29,10 @@ import {
   FolderArchive,
   ArrowRight,
   Filter,
-  Palette
+  Palette,
+  Smartphone
 } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 import { 
   Gudep, 
   Member, 
@@ -186,6 +188,8 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
               <QrCode className="w-3.5 h-3.5" />
               <span>Verifikasi QR</span>
             </button>
+
+            <PWAInstallButton variant="header" logoUrl={heroBgConfig?.logoUrl} />
           </div>
         </div>
 
@@ -362,6 +366,9 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
 
             {/* Quick Hero Actions */}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              {/* PWA Direct Install Button for Mobile & Tablet */}
+              <PWAInstallButton variant="hero" logoUrl={heroBgConfig?.logoUrl} />
+
               {onOpenRegistration && (
                 <button
                   onClick={onOpenRegistration}
@@ -404,6 +411,9 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
                 <span>Portal Pengurus Kwarran</span>
               </button>
             </div>
+
+            {/* PWA Highlight Card */}
+            <PWAInstallButton variant="card" logoUrl={heroBgConfig?.logoUrl} className="mt-8 max-w-4xl mx-auto text-left" />
           </div>
 
           {/* Quick Metrics Banner */}
@@ -1180,16 +1190,22 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
           </p>
           <div className="pt-3 border-t border-[#24130C] flex flex-wrap items-center justify-between gap-3 text-[11px] text-stone-400">
             <span>© 2026 Kwartir Ranting Tanah Sareal. Seluruh hak cipta dilindungi.</span>
-            <button
-              onClick={onOpenLogin}
-              className="text-amber-400 hover:text-amber-300 underline font-semibold flex items-center gap-1"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Portal Akses Pengurus</span>
-            </button>
+            <div className="flex items-center gap-4">
+              <PWAInstallButton variant="header" logoUrl={heroBgConfig?.logoUrl} />
+              <button
+                onClick={onOpenLogin}
+                className="text-amber-400 hover:text-amber-300 underline font-semibold flex items-center gap-1"
+              >
+                <Lock className="w-3 h-3" />
+                <span>Portal Akses Pengurus</span>
+              </button>
+            </div>
           </div>
         </div>
       </footer>
+
+      {/* Floating PWA Install Button for Mobile Users */}
+      <PWAInstallButton variant="floating" logoUrl={heroBgConfig?.logoUrl} />
     </div>
   );
 };

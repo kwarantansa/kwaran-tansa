@@ -2,6 +2,26 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Filter benign Vite websocket logs in sandbox iframe
+      (function() {
+        var origError = console.error;
+        var origWarn = console.warn;
+        var isBenign = function(args) {
+          if (!args || !args.length) return false;
+          var msg = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].message ? args[0].message : '');
+          return msg.indexOf('[vite]') !== -1;
+        };
+        console.error = function() {
+          if (isBenign(arguments)) return;
+          origError.apply(console, arguments);
+        };
+        console.warn = function() {
+          if (isBenign(arguments)) return;
+          origWarn.apply(console, arguments);
+        };
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <title>SISKA-SIKAP Pramuka Tanah Sareal</title>
     <link rel="icon" type="image/png" href="./logo-kwarran-tanah-sareal.png" />

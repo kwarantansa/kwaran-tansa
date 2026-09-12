@@ -6,7 +6,7 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
-    base: '/',
+    base: './',
     plugins: [
       react(), 
       tailwindcss(),
@@ -14,7 +14,6 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['logo-kwarran-tanah-sareal.png', 'pwa-192x192.png', 'pwa-512x512.png', 'apple-touch-icon.png'],
         manifest: {
-          id: '/',
           name: 'SISKA-SIKAP Kwarran Tanah Sareal',
           short_name: 'SISKA-SIKAP',
           description: 'Sistem Informasi Pemutakhiran Data Anggota & Gugus Depan, Pengelolaan NTA, dan Penerbitan KTA Kwarran Tanah Sareal Kota Bogor.',
@@ -22,23 +21,23 @@ export default defineConfig(() => {
           background_color: '#180E09',
           display: 'standalone',
           orientation: 'portrait',
-          start_url: '/',
-          scope: '/',
+          start_url: '.',
+          scope: '.',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: 'pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -46,6 +45,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
             {

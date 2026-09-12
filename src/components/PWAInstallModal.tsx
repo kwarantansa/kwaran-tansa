@@ -27,7 +27,7 @@ interface PWAInstallModalProps {
 export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
   isOpen,
   onClose,
-  logoUrl = '/logo-kwarran-tanah-sareal.png'
+  logoUrl = './logo-kwarran-tanah-sareal.png'
 }) => {
   const { isInstallable, isInstalled, isIOS, isAndroid, install } = usePWAInstall();
   const [activeDeviceTab, setActiveDeviceTab] = useState<'android' | 'ios' | 'qrcode'>('android');
@@ -97,7 +97,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
                   alt="Icon SISKA-SIKAP"
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
+                    (e.target as HTMLImageElement).src = './logo-kwarran-tanah-sareal.png';
                   }}
                 />
               </div>

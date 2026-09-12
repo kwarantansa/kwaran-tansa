@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full h-full object-contain p-0.5"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
+                      (e.target as HTMLImageElement).src = './logo-kwarran-tanah-sareal.png';
                     }}
                   />
                 ) : (

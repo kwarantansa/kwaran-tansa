@@ -11,7 +11,7 @@ interface PWAInstallButtonProps {
 
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
   variant = 'header',
-  logoUrl = '/logo-kwarran-tanah-sareal.png',
+  logoUrl = './logo-kwarran-tanah-sareal.png',
   className = ''
 }) => {
   const { isInstallable, isInstalled, install } = usePWAInstall();
@@ -86,7 +86,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   alt="Logo Kwarran Tanah Sareal"
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/logo-kwarran-tanah-sareal.png';
+                    (e.target as HTMLImageElement).src = './logo-kwarran-tanah-sareal.png';
                   }}
                 />
               </div>

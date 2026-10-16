@@ -103,9 +103,7 @@ import {
   Globe,
   Lock,
   LogOut,
-  UserCheck,
-  Cloud,
-  Radio
+  UserCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -1085,12 +1083,6 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 text-[11px]">
-                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-950/60 border border-amber-500/40 text-amber-300 font-mono text-[10px]">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                  <Cloud className="w-3 h-3 text-amber-400" />
-                  <span>Realtime Cloud Synced</span>
-                </div>
-
                 <button
                   onClick={handleSwitchToPublic}
                   className="text-stone-300 hover:text-amber-300 flex items-center gap-1 font-semibold underline"

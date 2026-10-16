@@ -138,9 +138,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handlePresetSelect = (presetId: string) => {
     if (presetId === 'user-superadmin') {
       setPengurusSubTab('manual');
-      setPengurusUsername('superadmin');
+      setPengurusUsername('admin');
       setPengurusPassword('');
-      setErrorMessage('Akun Super Admin berkeamanan tinggi. Silakan masukkan kata sandi akun superadmin untuk melanjutkan.');
+      setErrorMessage('Akun Super Admin berkeamanan tinggi. Silakan masukkan kata sandi akun admin ("akhmadtaufik84@") untuk melanjutkan.');
       return;
     }
 
@@ -512,7 +512,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       required
                       value={pengurusUsername}
                       onChange={(e) => setPengurusUsername(e.target.value)}
-                      placeholder="Contoh: superadmin atau ketua.kwarran"
+                      placeholder="Contoh: admin atau ketua.kwarran"
                       className="w-full bg-[#1A0C06] border border-[#442618] focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors"
                     />
                   </div>

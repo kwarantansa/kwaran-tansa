@@ -9,14 +9,14 @@ export type PengurusAccountItem = AuthUser & { pin: string; description: string 
 export const INITIAL_PRESET_ACCOUNTS: PengurusAccountItem[] = [
   {
     id: 'user-superadmin',
-    username: 'superadmin',
+    username: 'admin',
     pin: 'akhmadtaufik84@',
     name: 'Kak Akhmad Taufik',
     role: 'superadmin',
     roleTitle: 'Super Administrator SIKAP',
     jabatan: 'Super Admin Sistem Informasi Kwarran Tanah Sareal',
     nta: '09.02.04.000.0001',
-    email: 'superadmin.tansa@pramukajabar.or.id',
+    email: 'admin.tansa@pramukajabar.or.id',
     avatarEmoji: '⚡',
     description: 'Hak akses master: Mengatur username & kata sandi seluruh pengurus ranting, reset kredensial, dan kontrol sistem penuh.',
     permissions: {
@@ -26,6 +26,7 @@ export const INITIAL_PRESET_ACCOUNTS: PengurusAccountItem[] = [
       canManageArchives: true,
       canManageSemesterReports: true,
       canAccessAi: true,
+      canManageUsers: true,
     },
   },
   {
@@ -149,20 +150,37 @@ export const getCustomPengurusList = (): PengurusAccountItem[] => {
       }
     }
 
-    // Always ensure superadmin account exists and has proper credentials
+    // Always ensure superadmin account exists and has proper credentials (username: admin, password: akhmadtaufik84@)
     const superAdminPreset = INITIAL_PRESET_ACCOUNTS[0]; // id: 'user-superadmin'
-    const superAdminIndex = list.findIndex(a => a.username.toLowerCase() === 'superadmin' || a.id === 'user-superadmin' || a.role === 'superadmin');
+    const superAdminIndex = list.findIndex(a => 
+      a.username.toLowerCase() === 'admin' || 
+      a.username.toLowerCase() === 'superadmin' || 
+      a.id === 'user-superadmin' || 
+      a.role === 'superadmin'
+    );
+
     if (superAdminIndex === -1) {
       list = [superAdminPreset, ...list];
       saveCustomPengurusList(list);
     } else {
       let changed = false;
-      if (!list[superAdminIndex].pin) {
+      if (list[superAdminIndex].username !== 'admin') {
+        list[superAdminIndex].username = 'admin';
+        changed = true;
+      }
+      if (!list[superAdminIndex].pin || list[superAdminIndex].pin === '123456') {
         list[superAdminIndex].pin = 'akhmadtaufik84@';
         changed = true;
       }
       if (list[superAdminIndex].role !== 'superadmin') {
         list[superAdminIndex].role = 'superadmin';
+        changed = true;
+      }
+      if (!list[superAdminIndex].permissions?.canManageUsers) {
+        list[superAdminIndex].permissions = {
+          ...list[superAdminIndex].permissions,
+          canManageUsers: true,
+        };
         changed = true;
       }
       if (changed) {
@@ -179,7 +197,12 @@ export const getCustomPengurusList = (): PengurusAccountItem[] => {
 
 export const isSuperAdmin = (user: AuthUser | null | undefined): boolean => {
   if (!user) return false;
-  return user.username.toLowerCase() === 'superadmin' || user.role === 'superadmin';
+  return (
+    user.role === 'superadmin' ||
+    user.username.toLowerCase() === 'admin' ||
+    user.username.toLowerCase() === 'superadmin' ||
+    user.permissions?.canManageUsers === true
+  );
 };
 
 export const canManageAccountPassword = (currentUser: AuthUser | null, targetAccountId: string): boolean => {
@@ -292,7 +315,8 @@ export const resetAccountPasswordToDefault = (
     return { success: false, error: 'Hanya Super Admin ("superadmin") atau pemilik akun yang berwenang mereset password akun ini.' };
   }
 
-  const defaultPin = target.username.toLowerCase() === 'superadmin' ? 'akhmadtaufik84@' : '123456';
+  const isSuper = target.username.toLowerCase() === 'admin' || target.username.toLowerCase() === 'superadmin' || target.role === 'superadmin';
+  const defaultPin = isSuper ? 'akhmadtaufik84@' : '123456';
   return updateAccountCredentials(accountId, target.username, defaultPin, requestingUser);
 };
 
@@ -347,16 +371,38 @@ export const authenticateCredentials = (
 
   const currentList = getCustomPengurusList();
 
-  // 1. Check Super Admin account explicitly
-  if (query === 'superadmin' || query === 'superadmin.tansa@pramukajabar.or.id') {
-    const superAdminAcc = currentList.find(acc => acc.username.toLowerCase() === 'superadmin' || acc.role === 'superadmin') || INITIAL_PRESET_ACCOUNTS[0];
+  // 1. Check Super Admin account explicitly (support username "admin" or legacy "superadmin")
+  if (
+    query === 'admin' || 
+    query === 'superadmin' || 
+    query === 'admin.tansa@pramukajabar.or.id' || 
+    query === 'superadmin.tansa@pramukajabar.or.id'
+  ) {
+    const superAdminAcc = currentList.find(acc => 
+      acc.id === 'user-superadmin' ||
+      acc.username.toLowerCase() === 'admin' || 
+      acc.username.toLowerCase() === 'superadmin' || 
+      acc.role === 'superadmin'
+    ) || INITIAL_PRESET_ACCOUNTS[0];
     const passInput = pinOrPass.trim();
     if (passInput === superAdminAcc.pin || passInput === 'akhmadtaufik84@') {
       const { pin, description, ...user } = superAdminAcc;
+      user.username = 'admin';
+      user.role = 'superadmin';
+      user.permissions = {
+        canEditGudep: true,
+        canEditMembers: true,
+        canManageKta: true,
+        canManageArchives: true,
+        canManageSemesterReports: true,
+        canAccessAi: true,
+        canManageUsers: true,
+        ...user.permissions,
+      };
       setStoredAuthUser(user);
       return { success: true, user };
     } else {
-      return { success: false, error: 'Kata sandi Super Admin salah. Silakan periksa kembali kata sandi akun superadmin.' };
+      return { success: false, error: 'Kata sandi Super Admin salah. Silakan periksa kembali kata sandi akun admin.' };
     }
   }
 

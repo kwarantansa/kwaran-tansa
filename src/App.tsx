@@ -16,6 +16,7 @@ import { QrVerifierModal } from './components/QrVerifierModal';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { GDriveSelectorModal } from './components/GDriveSelectorModal';
 import { GudepRegistrationModal } from './components/GudepRegistrationModal';
+import { AccountManager } from './components/AccountManager';
 import { BottomNavigation } from './components/BottomNavigation';
 import { 
   loadGudepList, 
@@ -97,6 +98,7 @@ import {
   X, 
   RotateCcw,
   BarChart3,
+  ShieldAlert,
   Heart,
   Globe,
   Lock,
@@ -1053,11 +1055,19 @@ export default function App() {
                   </span>
                 )}
                 <button
+                  onClick={() => setActiveTab('accounts')}
+                  className="ml-1 text-[11px] text-amber-300 hover:text-amber-200 flex items-center gap-1 font-bold bg-amber-500/20 hover:bg-amber-500/30 px-2 py-0.5 rounded border border-amber-500/40 transition-colors"
+                  title="Buka menu manajemen semua akun pengurus dan anggota"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  <span>(Kelola Semua Akun)</span>
+                </button>
+                <button
                   onClick={() => {
                     setPengurusSettingsSection('credentials');
                     setIsPengurusSettingsOpen(true);
                   }}
-                  className="ml-1 text-[11px] text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold"
+                  className="text-[11px] text-amber-300 hover:text-amber-200 underline flex items-center gap-1 font-semibold"
                   title="Atur username dan password login pengurus"
                 >
                   (Atur Username & Password)
@@ -1180,6 +1190,32 @@ export default function App() {
                 members={members}
                 onSaveReport={handleSaveSemesterReport}
                 onDeleteReport={handleDeleteSemesterReport}
+              />
+            )}
+
+            {activeTab === 'accounts' && (
+              <AccountManager
+                currentUser={currentUser}
+                pengurusList={pengurusList}
+                onUpdatePengurusList={(newList) => {
+                  setPengurusList(newList);
+                }}
+                registrations={registrations}
+                onUpdateRegistrations={(newRegs) => {
+                  setRegistrations(newRegs);
+                  saveRegistrations(newRegs);
+                }}
+                gudepList={gudepList}
+                onUpdateGudepList={(newGudep) => {
+                  setGudepList(newGudep);
+                  saveGudepList(newGudep);
+                }}
+                members={members}
+                onUpdateMembers={(newMembers) => {
+                  setMembers(newMembers);
+                  saveMemberList(newMembers);
+                }}
+                onShowToast={showToast}
               />
             )}
           </main>

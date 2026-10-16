@@ -22,11 +22,14 @@ import {
   Settings,
   Palette,
   HardDrive,
-  KeyRound
+  KeyRound,
+  ShieldAlert,
+  UserCog
 } from 'lucide-react';
 import { AuthUser } from '../types';
+import { isSuperAdmin } from '../utils/auth';
 
-export type ActiveTab = 'dashboard' | 'gudep' | 'members' | 'collective-kta' | 'archives' | 'semester-report';
+export type ActiveTab = 'dashboard' | 'gudep' | 'members' | 'collective-kta' | 'archives' | 'semester-report' | 'accounts';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -75,6 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'collective-kta', label: 'KTA Kolektif', icon: <CreditCard className="w-4 h-4" /> },
     { id: 'archives', label: 'Arsip Kwarran', icon: <FolderArchive className="w-4 h-4 text-amber-400" />, badge: 'Cloud' },
     { id: 'semester-report', label: 'Laporan Semester', icon: <FileCheck className="w-4 h-4 text-amber-400" /> },
+    { id: 'accounts', label: 'Kelola Semua Akun', icon: <ShieldAlert className="w-4 h-4 text-amber-400" />, badge: isSuperAdmin(currentUser) ? 'Superadmin' : 'Akun' },
   ];
 
   return (
@@ -219,10 +223,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>Ganti Akun Pengurus</span>
                     </button>
 
+                    <button
+                      onClick={() => setActiveTab('accounts')}
+                      className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-[#381F15] rounded-xl transition-colors text-left"
+                    >
+                      <UserCog className="w-4 h-4 text-amber-400" />
+                      <span>Kelola Semua Akun (Pengurus & Anggota)</span>
+                    </button>
+
                     {onOpenPengurusSettings && (
                       <button
                         onClick={() => onOpenPengurusSettings('credentials')}
-                        className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-[#233430] rounded-xl transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-stone-300 hover:text-white hover:bg-[#233430] rounded-xl transition-colors text-left"
                       >
                         <KeyRound className="w-4 h-4 text-amber-400" />
                         <span>Pengaturan Username & Password</span>

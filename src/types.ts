@@ -491,6 +491,7 @@ export interface AuthUser {
     canManageArchives: boolean;
     canManageSemesterReports: boolean;
     canAccessAi: boolean;
+    canManageUsers?: boolean;
   };
 }
 

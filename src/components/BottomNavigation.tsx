@@ -24,7 +24,8 @@ import {
   ShieldCheck,
   UserCheck,
   Palette,
-  HardDrive
+  HardDrive,
+  ShieldAlert
 } from 'lucide-react';
 import { ActiveTab } from './Navbar';
 import { AuthUser } from '../types';
@@ -180,6 +181,21 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                         <div>
                           <p className="font-bold text-xs">Laporan Semester</p>
                           <p className="text-[10px] text-stone-400">Evaluasi Ranting</p>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => handleSelectTab('accounts')}
+                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all ${
+                          activeTab === 'accounts'
+                            ? 'bg-amber-500/15 border-amber-500 text-amber-300 shadow-sm'
+                            : 'bg-[#2A160E] border-[#442618] text-stone-200 hover:bg-[#381F14]'
+                        }`}
+                      >
+                        <ShieldAlert className="w-5 h-5 text-amber-400" />
+                        <div>
+                          <p className="font-bold text-xs">Kelola Semua Akun</p>
+                          <p className="text-[10px] text-amber-300/80">Pengurus & Anggota</p>
                         </div>
                       </button>
 

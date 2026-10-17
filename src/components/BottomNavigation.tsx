@@ -47,6 +47,7 @@ interface BottomNavigationProps {
   onExportBackup?: () => void;
   memberCount?: number;
   gudepCount?: number;
+  pendingRegistrationsCount?: number;
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({
@@ -65,7 +66,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   onLogout,
   onExportBackup,
   memberCount = 0,
-  gudepCount = 0
+  gudepCount = 0,
+  pendingRegistrationsCount = 0
 }) => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -505,11 +507,15 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   activeTab === 'gudep' ? 'bg-amber-500/20 text-amber-300' : ''
                 }`}>
                   <Building2 className="w-5 h-5" />
-                  {gudepCount > 0 && (
+                  {pendingRegistrationsCount > 0 ? (
+                    <span className="absolute -top-1 -right-2 bg-amber-500 text-stone-950 font-black text-[9px] px-1 rounded-full animate-pulse shadow-sm">
+                      {pendingRegistrationsCount}
+                    </span>
+                  ) : gudepCount > 0 ? (
                     <span className="absolute -top-1 -right-1.5 bg-[#341B10] text-stone-300 text-[8.5px] px-1 rounded-full font-mono border border-[#4E2818]">
                       {gudepCount}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <span className="text-[10px] tracking-tight mt-0.5 whitespace-nowrap">Gudep</span>
                 {activeTab === 'gudep' && (

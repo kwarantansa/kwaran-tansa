@@ -21,7 +21,7 @@ import {
   FileCheck,
   FileSpreadsheet
 } from 'lucide-react';
-import { Gudep, Member, CollectiveKtaBatch, ArchiveDocument } from '../types';
+import { Gudep, Member, CollectiveKtaBatch, ArchiveDocument, GudepRegistration } from '../types';
 import { ActiveTab } from './Navbar';
 
 interface DashboardProps {
@@ -29,6 +29,8 @@ interface DashboardProps {
   members: Member[];
   batches: CollectiveKtaBatch[];
   archives?: ArchiveDocument[];
+  registrations?: GudepRegistration[];
+  onNavigateToVerification?: () => void;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenVerifier: () => void;
   onOpenAi: () => void;
@@ -40,6 +42,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   members,
   batches,
   archives = [],
+  registrations = [],
+  onNavigateToVerification,
   setActiveTab,
   onOpenVerifier,
   onOpenAi,
@@ -65,8 +69,54 @@ export const Dashboard: React.FC<DashboardProps> = ({
     kelurahanCounts[g.kelurahan] = (kelurahanCounts[g.kelurahan] || 0) + 1;
   });
 
+  const pendingRegistrations = registrations.filter(r => r.statusVerifikasi === 'Menunggu Verifikasi');
+
   return (
     <div className="space-y-6">
+      {/* Alert Banner: Antrian Verifikasi Gudep */}
+      {pendingRegistrations.length > 0 && (
+        <div className="bg-gradient-to-r from-[#2B170F] via-[#381E13] to-[#25120B] border-2 border-amber-500 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden animate-fadeIn">
+          <div className="absolute right-0 top-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16"></div>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center font-black text-xl shadow-md flex-shrink-0 animate-pulse">
+                ⏳
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-black text-base sm:text-lg text-amber-300">
+                    Daftar Antrian Verifikasi Gudep ({pendingRegistrations.length} Menunggu)
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-stone-950 uppercase tracking-wide">
+                    Tindakan Diperlukan
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-stone-300 mt-1 leading-relaxed">
+                  Ada pendaftaran pangkalan baru yang menunggu persetujuan pengurus:
+                  <strong className="text-amber-200 ml-1">
+                    {pendingRegistrations.map(r => `${r.namaPangkalan} (${r.noRegistrasi})`).join(', ')}
+                  </strong>.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (onNavigateToVerification) {
+                  onNavigateToVerification();
+                } else {
+                  setActiveTab('gudep');
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs sm:text-sm rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap border border-amber-300"
+            >
+              <ShieldCheck className="w-4 h-4 text-stone-950" />
+              <span>Buka Antrian Verifikasi Sekarang</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero Welcome Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-[#24140D] text-white p-6 sm:p-8 shadow-md border border-[#3C2216]">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
@@ -317,6 +367,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </h3>
 
             <div className="space-y-2 text-xs">
+              <button
+                onClick={() => onNavigateToVerification ? onNavigateToVerification() : setActiveTab('gudep')}
+                className={`w-full py-2.5 px-3.5 rounded-xl font-semibold flex items-center justify-between border transition-all text-left ${
+                  pendingRegistrations.length > 0
+                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/60 shadow-sm'
+                    : 'bg-[#331B10] hover:bg-[#442416] text-stone-200 border-[#522B19]'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>🛡️ Antrian Verifikasi Gudep</span>
+                  {pendingRegistrations.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-stone-950 animate-pulse">
+                      {pendingRegistrations.length} Menunggu
+                    </span>
+                  )}
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-amber-400" />
+              </button>
+
               <button
                 onClick={() => setActiveTab('gudep')}
                 className="w-full py-2.5 px-3.5 bg-[#331B10] hover:bg-[#442416] text-stone-200 rounded-xl font-semibold flex items-center justify-between border border-[#522B19] transition-colors text-left"

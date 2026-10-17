@@ -668,11 +668,12 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
     return registrations.filter(r => {
       const q = searchQuery.toLowerCase().trim();
       const matchQ = !q || (
-        r.namaPangkalan.toLowerCase().includes(q) ||
-        r.akunGudep.username.toLowerCase().includes(q) ||
+        (r.namaPangkalan && r.namaPangkalan.toLowerCase().includes(q)) ||
+        (r.noRegistrasi && r.noRegistrasi.toLowerCase().includes(q)) ||
+        (r.akunGudep?.username && r.akunGudep.username.toLowerCase().includes(q)) ||
         (r.nomorGudep && r.nomorGudep.toLowerCase().includes(q)) ||
-        (r.akunGudep.namaPendaftar && r.akunGudep.namaPendaftar.toLowerCase().includes(q)) ||
-        (r.akunGudep.emailPendaftar && r.akunGudep.emailPendaftar.toLowerCase().includes(q)) ||
+        (r.akunGudep?.namaPendaftar && r.akunGudep.namaPendaftar.toLowerCase().includes(q)) ||
+        (r.akunGudep?.emailPendaftar && r.akunGudep.emailPendaftar.toLowerCase().includes(q)) ||
         (r.namaPembinaPa && r.namaPembinaPa.toLowerCase().includes(q))
       );
 

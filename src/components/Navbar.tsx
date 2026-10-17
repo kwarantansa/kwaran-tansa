@@ -47,6 +47,8 @@ interface NavbarProps {
   onOpenPengurusSettings?: (section?: 'pengurus' | 'credentials' | 'kontak' | 'background') => void;
   onOpenHeroBgSettings?: () => void;
   onOpenGDriveSettings?: () => void;
+  pendingRegistrationsCount?: number;
+  onNavigateToVerification?: () => void;
   logoUrl?: string;
 }
 
@@ -66,14 +68,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenPengurusSettings,
   onOpenHeroBgSettings,
   onOpenGDriveSettings,
+  pendingRegistrationsCount = 0,
+  onNavigateToVerification,
   logoUrl
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string }[] = [
+  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard & Statistik', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'gudep', label: 'Pendataan Gudep', icon: <Building2 className="w-4 h-4" /> },
+    { 
+      id: 'gudep', 
+      label: 'Pendataan Gudep', 
+      icon: <Building2 className="w-4 h-4" />, 
+      badge: pendingRegistrationsCount > 0 ? `${pendingRegistrationsCount} Menunggu` : undefined,
+      badgeColor: 'bg-amber-500 text-stone-950 font-black animate-pulse'
+    },
     { id: 'members', label: 'Buku Induk Anggota (NTA)', icon: <Users className="w-4 h-4" /> },
     { id: 'collective-kta', label: 'KTA Kolektif', icon: <CreditCard className="w-4 h-4" /> },
     { id: 'archives', label: 'Arsip Kwarran', icon: <FolderArchive className="w-4 h-4 text-amber-400" />, badge: 'Cloud' },
@@ -94,10 +104,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="hidden sm:inline text-stone-400">Kwartir Cabang Kota Bogor • Kwarda Jawa Barat</span>
         </div>
 
-        <div className="flex items-center gap-3 text-[11px]">
+        <div className="flex items-center gap-2.5 text-[11px] flex-wrap">
           <span className="text-stone-400 hidden md:inline">
             Pembaruan Sistem: <strong className="text-stone-200 font-mono">{lastSyncTime}</strong>
           </span>
+
+          {pendingRegistrationsCount > 0 && (
+            <button
+              onClick={onNavigateToVerification}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 text-[11px] font-black transition-all shadow-sm animate-pulse border border-amber-300"
+              title="Ada pendaftaran Gudep baru menunggu verifikasi pengurus"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-stone-950" />
+              <span>{pendingRegistrationsCount} Antrian Verifikasi</span>
+            </button>
+          )}
 
           <button
             onClick={onSwitchToPublic}
@@ -336,7 +357,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {item.icon}
                 <span>{item.label}</span>
                 {item.badge && (
-                  <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-bold border border-amber-400/30">
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${
+                    item.badgeColor || 'bg-amber-400/20 text-amber-300 border-amber-400/30'
+                  }`}>
                     {item.badge}
                   </span>
                 )}
@@ -383,7 +406,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>{item.label}</span>
               </div>
               {item.badge && (
-                <span className="text-[9px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
+                <span className={`text-[9px] px-2 py-0.5 rounded border ${
+                  item.badgeColor || 'bg-amber-400/20 text-amber-300 border-amber-400/30'
+                }`}>
                   {item.badge}
                 </span>
               )}

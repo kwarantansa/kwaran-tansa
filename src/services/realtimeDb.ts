@@ -349,10 +349,28 @@ export function subscribeToHeroBackground(callback: (data: HeroBackgroundConfig)
   });
 }
 
+// Deep sanitizer to ensure NO field is undefined when sent to Firestore.
+// Firestore throws "Unsupported field value: undefined" if any property is undefined.
+export function sanitizeFirestoreData<T>(obj: T): T {
+  if (obj === null || obj === undefined) return null as unknown as T;
+  if (Array.isArray(obj)) return obj.map(item => sanitizeFirestoreData(item)) as unknown as T;
+  if (typeof obj === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = sanitizeFirestoreData(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return obj;
+}
+
 // Database Mutation Actions (Save / Update / Delete)
 export async function saveGudepToCloud(gudep: Gudep) {
   try {
-    await setDoc(doc(db, COLL_GUDEP, gudep.id), gudep, { merge: true });
+    const cleaned = sanitizeFirestoreData(gudep);
+    await setDoc(doc(db, COLL_GUDEP, gudep.id), cleaned, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${COLL_GUDEP}/${gudep.id}`);
   }
@@ -368,7 +386,8 @@ export async function deleteGudepFromCloud(id: string) {
 
 export async function saveMemberToCloud(member: Member) {
   try {
-    await setDoc(doc(db, COLL_MEMBERS, member.id), member, { merge: true });
+    const cleaned = sanitizeFirestoreData(member);
+    await setDoc(doc(db, COLL_MEMBERS, member.id), cleaned, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${COLL_MEMBERS}/${member.id}`);
   }
@@ -476,7 +495,8 @@ export async function saveHeroBackgroundToCloud(config: HeroBackgroundConfig) {
 
 export async function saveGudepRegistrationToCloud(registration: GudepRegistration) {
   try {
-    await setDoc(doc(db, COLL_REGISTRATIONS, registration.id), registration, { merge: true });
+    const cleaned = sanitizeFirestoreData(registration);
+    await setDoc(doc(db, COLL_REGISTRATIONS, registration.id), cleaned, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${COLL_REGISTRATIONS}/${registration.id}`);
   }
@@ -489,14 +509,15 @@ export async function updateRegistrationStatusInCloud(
   verifierName?: string
 ) {
   try {
+    const payload = sanitizeFirestoreData({
+      statusVerifikasi: status,
+      catatanVerifikasi: note || (status === 'Disetujui' ? 'Disetujui dan diverifikasi oleh Pengurus Kwarran' : 'Ditolak / Perlu Revisi'),
+      diverifikasiOleh: verifierName || 'Pengurus Kwarran',
+      tanggalVerifikasi: new Date().toISOString()
+    });
     await setDoc(
       doc(db, COLL_REGISTRATIONS, id),
-      {
-        statusVerifikasi: status,
-        catatanVerifikasi: note || (status === 'Disetujui' ? 'Disetujui dan diverifikasi oleh Pengurus Kwarran' : 'Ditolak / Perlu Revisi'),
-        diverifikasiOleh: verifierName || 'Pengurus Kwarran',
-        tanggalVerifikasi: new Date().toISOString()
-      },
+      payload,
       { merge: true }
     );
   } catch (err) {

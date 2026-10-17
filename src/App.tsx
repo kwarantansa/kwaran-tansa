@@ -128,6 +128,7 @@ export default function App() {
   const [pengurusList, setPengurusList] = useState<PengurusAccountItem[]>(getCustomPengurusList());
   const [gdriveSettings, setGDriveSettings] = useState<GDriveStorageSettings>(loadGDriveSettings());
   const [registrations, setRegistrations] = useState<GudepRegistration[]>(() => loadRegistrations());
+  const [gudepMainTab, setGudepMainTab] = useState<'buku_induk' | 'verifikasi_registrasi'>('buku_induk');
 
   // Modal states
   const [isVerifierOpen, setIsVerifierOpen] = useState(false);
@@ -265,10 +266,27 @@ export default function App() {
       }
     });
 
-    const unsubRegistrations = subscribeToRegistrations((data) => {
-      if (data && data.length > 0) {
-        setRegistrations(data);
-        saveRegistrations(data);
+    const unsubRegistrations = subscribeToRegistrations((cloudData) => {
+      if (cloudData) {
+        const localRegs = loadRegistrations();
+        const mergedMap = new Map<string, GudepRegistration>();
+
+        // Add cloud registrations first
+        cloudData.forEach((item) => mergedMap.set(item.id, item));
+
+        // Preserve and auto-push any local registration that hasn't synced to cloud
+        localRegs.forEach((localItem) => {
+          if (!mergedMap.has(localItem.id)) {
+            mergedMap.set(localItem.id, localItem);
+            saveRegistrationToCloud(localItem).catch((err) => {
+              console.warn('Auto-syncing local registration to cloud:', err);
+            });
+          }
+        });
+
+        const mergedList = Array.from(mergedMap.values());
+        setRegistrations(mergedList);
+        saveRegistrations(mergedList);
       }
     });
 
@@ -561,6 +579,12 @@ export default function App() {
   };
 
   // Registration Handlers (Public & Admin Verification)
+  const handleNavigateToVerification = () => {
+    setGudepMainTab('verifikasi_registrasi');
+    setActiveTab('gudep');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSaveRegistration = async (newReg: GudepRegistration) => {
     const updated = [newReg, ...registrations.filter(r => r.id !== newReg.id)];
     setRegistrations(updated);
@@ -1032,6 +1056,8 @@ export default function App() {
             }}
             onOpenHeroBgSettings={() => setIsHeroBgSettingsOpen(true)}
             onOpenGDriveSettings={() => setIsGDriveSelectorOpen(true)}
+            pendingRegistrationsCount={registrations.filter(r => r.statusVerifikasi === 'Menunggu Verifikasi').length}
+            onNavigateToVerification={handleNavigateToVerification}
             logoUrl={heroBgConfig.logoUrl}
           />
 
@@ -1110,6 +1136,8 @@ export default function App() {
                 members={members}
                 batches={batches}
                 archives={archives}
+                registrations={registrations}
+                onNavigateToVerification={handleNavigateToVerification}
                 setActiveTab={setActiveTab}
                 onOpenVerifier={() => setIsVerifierOpen(true)}
                 onOpenAi={() => setIsAiOpen(true)}
@@ -1122,6 +1150,8 @@ export default function App() {
                 gudepList={gudepList}
                 members={members}
                 registrations={registrations}
+                initialMainTab={gudepMainTab}
+                onMainTabChange={setGudepMainTab}
                 onSaveGudep={handleSaveGudep}
                 onDeleteGudep={handleDeleteGudep}
                 onVerifyRegistration={handleVerifyRegistration}
@@ -1400,6 +1430,7 @@ export default function App() {
         onExportBackup={handleExportBackup}
         memberCount={members.length}
         gudepCount={gudepList.length}
+        pendingRegistrationsCount={registrations.filter(r => r.statusVerifikasi === 'Menunggu Verifikasi').length}
       />
     </div>
   );

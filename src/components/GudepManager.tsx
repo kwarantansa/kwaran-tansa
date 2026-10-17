@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, 
   Search, 
@@ -34,6 +34,8 @@ interface GudepManagerProps {
   gudepList: Gudep[];
   members?: Member[];
   registrations?: GudepRegistration[];
+  initialMainTab?: 'buku_induk' | 'verifikasi_registrasi';
+  onMainTabChange?: (tab: 'buku_induk' | 'verifikasi_registrasi') => void;
   onSaveGudep: (gudep: Gudep) => void;
   onDeleteGudep: (id: string) => void;
   onVerifyRegistration?: (regId: string, status: 'Disetujui' | 'Ditolak', note?: string) => Promise<void>;
@@ -46,6 +48,8 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
   gudepList,
   members = [],
   registrations = [],
+  initialMainTab,
+  onMainTabChange,
   onSaveGudep,
   onDeleteGudep,
   onVerifyRegistration,
@@ -53,7 +57,21 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
   onNavigateToMembers,
   onOpenRegistration
 }) => {
-  const [activeMainTab, setActiveMainTab] = useState<'buku_induk' | 'verifikasi_registrasi'>('buku_induk');
+  const [activeMainTab, setActiveMainTab] = useState<'buku_induk' | 'verifikasi_registrasi'>(() => initialMainTab || 'buku_induk');
+
+  useEffect(() => {
+    if (initialMainTab) {
+      setActiveMainTab(initialMainTab);
+    }
+  }, [initialMainTab]);
+
+  const handleTabChange = (tab: 'buku_induk' | 'verifikasi_registrasi') => {
+    setActiveMainTab(tab);
+    if (onMainTabChange) {
+      onMainTabChange(tab);
+    }
+  };
+
   const [selectedRegDetail, setSelectedRegDetail] = useState<GudepRegistration | null>(null);
   const [regSearchQuery, setRegSearchQuery] = useState('');
   const [regStatusFilter, setRegStatusFilter] = useState<string>('ALL');
@@ -194,12 +212,14 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
   const pendingRegCount = registrations.filter(r => r.statusVerifikasi === 'Menunggu Verifikasi').length;
 
   const filteredRegistrations = registrations.filter(r => {
-    const matchesSearch = 
-      r.namaPangkalan.toLowerCase().includes(regSearchQuery.toLowerCase()) ||
-      r.noRegistrasi.toLowerCase().includes(regSearchQuery.toLowerCase()) ||
-      r.akunGudep.username.toLowerCase().includes(regSearchQuery.toLowerCase()) ||
-      (r.nomorGudep && r.nomorGudep.toLowerCase().includes(regSearchQuery.toLowerCase())) ||
-      r.kaMabigus.toLowerCase().includes(regSearchQuery.toLowerCase());
+    const q = regSearchQuery.toLowerCase().trim();
+    const matchesSearch = !q || (
+      (r.namaPangkalan && r.namaPangkalan.toLowerCase().includes(q)) ||
+      (r.noRegistrasi && r.noRegistrasi.toLowerCase().includes(q)) ||
+      (r.akunGudep?.username && r.akunGudep.username.toLowerCase().includes(q)) ||
+      (r.nomorGudep && r.nomorGudep.toLowerCase().includes(q)) ||
+      (r.kaMabigus && r.kaMabigus.toLowerCase().includes(q))
+    );
     const matchesStatus = regStatusFilter === 'ALL' || r.statusVerifikasi === regStatusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -252,10 +272,10 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
       </div>
 
       {/* Main Tab Navigation: Buku Induk vs Verifikasi Registrasi */}
-      <div className="flex items-center gap-2 border-b border-[#E5DFD5] pb-2">
+      <div className="flex items-center gap-2.5 border-b border-[#E5DFD5] pb-2 overflow-x-auto">
         <button
-          onClick={() => setActiveMainTab('buku_induk')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          onClick={() => handleTabChange('buku_induk')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeMainTab === 'buku_induk'
               ? 'bg-amber-900 text-amber-100 shadow-sm'
               : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -266,18 +286,20 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveMainTab('verifikasi_registrasi')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          onClick={() => handleTabChange('verifikasi_registrasi')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeMainTab === 'verifikasi_registrasi'
-              ? 'bg-amber-900 text-amber-100 shadow-sm'
+              ? 'bg-amber-900 text-amber-100 shadow-sm ring-2 ring-amber-500'
+              : pendingRegCount > 0
+              ? 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
               : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          <span>Verifikasi Pendaftaran Publik ({registrations.length})</span>
+          <span>Daftar Antrian & Verifikasi Registrasi ({registrations.length})</span>
           {pendingRegCount > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-stone-950 animate-pulse">
-              {pendingRegCount} Menunggu
+              {pendingRegCount} Menunggu Verifikasi
             </span>
           )}
         </button>
@@ -827,16 +849,20 @@ export const GudepManager: React.FC<GudepManagerProps> = ({
                       <span className="text-stone-500">Pembina Gudep:</span>
                       <span className="text-stone-900">Pa: {reg.namaPembinaPa || '-'} • Pi: {reg.namaPembinaPi || '-'}</span>
                     </div>
-                    <div className="flex items-center justify-between border-t border-[#E5DFD5] pt-1.5 mt-1">
-                      <span className="text-stone-500">Akun Login Dibuat:</span>
-                      <span className="font-mono font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        @{reg.akunGudep.username}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-stone-500">Pendaftar / WhatsApp:</span>
-                      <span className="text-stone-700">{reg.akunGudep.namaPendaftar} ({reg.akunGudep.noWaPendaftar})</span>
-                    </div>
+                    {reg.akunGudep?.username && (
+                      <div className="flex items-center justify-between border-t border-[#E5DFD5] pt-1.5 mt-1">
+                        <span className="text-stone-500">Akun Login Dibuat:</span>
+                        <span className="font-mono font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          @{reg.akunGudep.username}
+                        </span>
+                      </div>
+                    )}
+                    {(reg.akunGudep?.namaPendaftar || reg.akunGudep?.noWaPendaftar) && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-stone-500">Pendaftar / WhatsApp:</span>
+                        <span className="text-stone-700">{reg.akunGudep?.namaPendaftar || '-'} ({reg.akunGudep?.noWaPendaftar || '-'})</span>
+                      </div>
+                    )}
                   </div>
 
                   {reg.catatanVerifikasi && (

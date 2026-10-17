@@ -20,8 +20,11 @@ import {
   RotateCcw,
   Building2,
   PenTool,
-  AlertTriangle
+  AlertTriangle,
+  Camera,
+  Upload
 } from 'lucide-react';
+import { compressImageFile, normalizeImageUrl } from '../utils/imageCompressor';
 import { Member, GolonganPramuka, TingkatanPramuka, StatusKTA, StatusSync, Gudep, MemberInputSource } from '../types';
 import { exportMembersCsv, isMemberGudepExisting } from '../utils/storage';
 import { PengurusAccountItem } from '../utils/auth';
@@ -1444,14 +1447,50 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-stone-800 mb-1">URL Foto Profil (KTA)</label>
-                  <input
-                    type="text"
-                    value={formData.fotoUrl}
-                    onChange={(e) => setFormData({ ...formData, fotoUrl: e.target.value })}
-                    className="w-full p-2.5 bg-[#FAF8F5] border border-[#E5DFD5] rounded-xl focus:ring-2 focus:ring-amber-700/20 focus:outline-none"
-                  />
+                <div className="sm:col-span-2 p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-semibold text-stone-800 text-xs">Foto Profil / Pasfoto Anggota</label>
+                    <label className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold rounded-lg text-[11px] cursor-pointer inline-flex items-center gap-1 transition-colors shadow-sm">
+                      <Camera className="w-3 h-3" />
+                      <span>Upload Foto dari Device</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const optimizedDataUrl = await compressImageFile(file, 480, 560, 0.88);
+                            setFormData(prev => ({ ...prev, fotoUrl: optimizedDataUrl }));
+                          } catch (err) {
+                            console.error('Error uploading photo:', err);
+                          } finally {
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-14 rounded-lg overflow-hidden bg-stone-200 border border-stone-300 flex-shrink-0">
+                      <img
+                        src={formData.fotoUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&h=200&fit=crop&crop=face'}
+                        alt="Pasfoto"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&h=200&fit=crop&crop=face';
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.fotoUrl}
+                      onChange={(e) => setFormData({ ...formData, fotoUrl: normalizeImageUrl(e.target.value) })}
+                      placeholder="https://... atau klik Upload Foto dari Device"
+                      className="flex-1 p-2 bg-white border border-[#E5DFD5] rounded-xl text-xs focus:ring-2 focus:ring-amber-700/20 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>

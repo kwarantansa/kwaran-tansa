@@ -29,8 +29,12 @@ import {
   ChevronRight,
   ShieldAlert,
   Save,
-  Award
+  Award,
+  Upload,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
+import { compressImageFile, normalizeImageUrl } from '../utils/imageCompressor';
 import { 
   AuthUser, 
   GudepRegistration, 
@@ -185,6 +189,7 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
 
   // Modal State: Edit Anggota
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [isProcessingMemberPhoto, setIsProcessingMemberPhoto] = useState(false);
   const [memberForm, setMemberForm] = useState<{
     namaLengkap: string;
     nta: string;
@@ -192,13 +197,15 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
     jabatan: string;
     namaPangkalan: string;
     noTelepon: string;
+    fotoUrl: string;
   }>({
     namaLengkap: '',
     nta: '',
     nik: '',
     jabatan: '',
     namaPangkalan: '',
-    noTelepon: ''
+    noTelepon: '',
+    fotoUrl: ''
   });
 
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
@@ -606,7 +613,8 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
       nik: memberForm.nik.trim(),
       jabatan: memberForm.jabatan.trim(),
       namaPangkalan: memberForm.namaPangkalan.trim(),
-      noTelepon: memberForm.noTelepon.trim()
+      noTelepon: memberForm.noTelepon.trim(),
+      fotoUrl: memberForm.fotoUrl.trim() || editingMember.fotoUrl
     };
 
     const updatedMembers = members.map(m => m.id === updated.id ? updated : m);
@@ -1300,7 +1308,8 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
                               nik: m.nik || '',
                               jabatan: m.jabatan || '',
                               namaPangkalan: m.namaPangkalan,
-                              noTelepon: m.noTelepon || ''
+                              noTelepon: m.noTelepon || '',
+                              fotoUrl: m.fotoUrl || ''
                             });
                           }}
                           className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-[11px] inline-flex items-center gap-1"
@@ -2060,6 +2069,56 @@ export const AccountManager: React.FC<AccountManagerProps> = ({
                     onChange={(e) => setMemberForm({ ...memberForm, noTelepon: e.target.value })}
                     className="w-full px-3 py-2 border rounded-xl bg-stone-50 border-stone-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
                   />
+                </div>
+              </div>
+
+              {/* Photo Upload Section */}
+              <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
+                <label className="block font-bold text-stone-800 text-xs">
+                  Foto Profil / Pasfoto Anggota
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-16 rounded-xl overflow-hidden bg-stone-200 border border-stone-300 flex-shrink-0 relative">
+                    <img
+                      src={memberForm.fotoUrl || editingMember.fotoUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&h=200&fit=crop&crop=face'}
+                      alt="Pasfoto"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&h=200&fit=crop&crop=face';
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold rounded-lg text-xs cursor-pointer inline-flex items-center gap-1.5 transition-colors shadow-sm">
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{isProcessingMemberPhoto ? 'Memproses...' : 'Upload Foto dari Device'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={isProcessingMemberPhoto}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setIsProcessingMemberPhoto(true);
+                              const optimizedDataUrl = await compressImageFile(file, 480, 560, 0.88);
+                              setMemberForm(prev => ({ ...prev, fotoUrl: optimizedDataUrl }));
+                            } catch (err) {
+                              console.error('Error uploading photo:', err);
+                            } finally {
+                              setIsProcessingMemberPhoto(false);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-stone-500">
+                      Pilih dari galeri/kamera HP atau laptop. Otomatis disesuaikan rasio pasfoto KTA.
+                    </p>
+                  </div>
                 </div>
               </div>
 
